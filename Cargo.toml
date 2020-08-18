@@ -9,5 +9,5 @@ bevy_app = "0.1"
 bevy_asset = "0.1"
 bevy_render = "0.1"
 anyhow = "1.0"
-obj-rs = { version = "0.6", default-features = false }
 thiserror = "1.0"
+obj-rs = { version = "0.6", default-features = false }
