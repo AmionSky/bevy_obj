@@ -3,6 +3,10 @@ name = "bevy_obj"
 version = "0.1.0"
 authors = ["Csányi István <csanyistvan02@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "A Wavefront .obj mesh asset loader plugin"
+repository = "https://github.com/AmionSky/bevy_obj"
+readme = "README.md"
 
 [dependencies]
 bevy_app = "0.1"
