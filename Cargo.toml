@@ -9,9 +9,9 @@ repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
 [dependencies]
-bevy_app = "0.1"
-bevy_asset = "0.1"
-bevy_render = "0.1"
+bevy_app = "0.2"
+bevy_asset = "0.2"
+bevy_render = "0.2"
 anyhow = "1.0"
 thiserror = "1.0"
 obj-rs = { version = "0.6", default-features = false }
