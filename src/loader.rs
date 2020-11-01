@@ -35,19 +35,17 @@ fn load_obj(bytes: Vec<u8>) -> Result<Mesh, ObjError> {
 }
 
 fn load_obj_pnt(obj: obj::Obj<obj::TexturedVertex>, mesh: &mut Mesh) {
-    mesh.attributes.push(VertexAttribute::position(
-        obj.vertices.iter().map(|v| v.position).collect(),
-    ));
-    mesh.attributes.push(VertexAttribute::normal(
-        obj.vertices.iter().map(|v| v.normal).collect(),
-    ));
-    mesh.attributes.push(VertexAttribute::uv(
-        obj.vertices
-            .iter()
-            // Flip UV for correct values
-            .map(|v| [v.texture[0], 1.0 - v.texture[1]])
-            .collect(),
-    ));
+    let uvs = VertexAttributeValues::Float3(obj.vertices
+                .iter()
+                // Flip UV for correct values
+                .map(|v| [v.texture[0], 1.0 - v.texture[1], v.texture[2]])
+                .collect());
+    let positions = VertexAttributeValues::Float3(obj.vertices.iter().map(|v| v.position).collect());
+    let normals = VertexAttributeValues::Float3(obj.vertices.iter().map(|v| v.normal).collect());
+
+    mesh.attributes.insert(Cow::Borrowed(Mesh::ATTRIBUTE_POSITION), positions);
+    mesh.attributes.insert(Cow::Borrowed(Mesh::ATTRIBUTE_NORMAL), normals);
+    mesh.attributes.insert(Cow::Borrowed(Mesh::ATTRIBUTE_UV_0), uvs);
 
     set_mesh_indices(mesh, obj);
 }
