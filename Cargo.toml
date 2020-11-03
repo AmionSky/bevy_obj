@@ -5,10 +5,10 @@ authors = ["Csányi István <csanyistvan02@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-bevy_app = { package = "bevy_app", git = "https://github.com/bevyengine/bevy", branch = "master" }
-bevy_asset = { package = "bevy_asset", git = "https://github.com/bevyengine/bevy", branch = "master" }
-bevy_render = { package = "bevy_render", git = "https://github.com/bevyengine/bevy", branch = "master" }
-bevy_utils = { package = "bevy_utils", git = "https://github.com/bevyengine/bevy", branch = "master" }
+bevy_app = "0.3"
+bevy_asset = "0.3"
+bevy_render = "0.3"
+bevy_utils = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 obj-rs = { version = "0.6", default-features = false }
