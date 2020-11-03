@@ -5,7 +5,6 @@ use bevy_render::{
     pipeline::PrimitiveTopology,
 };
 use bevy_utils::BoxedFuture;
-use std::borrow::Cow;
 use thiserror::Error;
 
 #[derive(Default)]
@@ -54,18 +53,15 @@ fn load_obj_pnt(obj: obj::Obj<obj::TexturedVertex>, mesh: &mut Mesh) {
         VertexAttributeValues::Float3(obj.vertices.iter().map(|v| v.position).collect());
     let normals = VertexAttributeValues::Float3(obj.vertices.iter().map(|v| v.normal).collect());
 
-    mesh.attributes
-        .insert(Cow::Borrowed(Mesh::ATTRIBUTE_POSITION), positions);
-    mesh.attributes
-        .insert(Cow::Borrowed(Mesh::ATTRIBUTE_NORMAL), normals);
-    mesh.attributes
-        .insert(Cow::Borrowed(Mesh::ATTRIBUTE_UV_0), uvs);
+    mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
 
     set_mesh_indices(mesh, obj);
 }
 
 fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T>) {
-    mesh.indices = Some(Indices::U32(
+    mesh.set_indices(Some(Indices::U32(
         obj.indices.iter().map(|i| *i as u32).collect(),
-    ));
+    )));
 }
