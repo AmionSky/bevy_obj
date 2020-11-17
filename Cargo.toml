@@ -16,3 +16,11 @@ bevy_utils = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 obj-rs = { version = "0.6", default-features = false }
+
+[dev-dependencies]
+bevy = "0.3"
+#bevy = { git = "https://github.com/bevyengine/bevy" }
+
+[[example]]
+name = "render_obj"
+path = "example/render_obj.rs"
