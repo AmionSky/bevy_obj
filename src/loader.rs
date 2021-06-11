@@ -62,18 +62,20 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
 
     match pnt {
         1 => {
-            let obj: obj::Obj<obj::Position> = obj::Obj::new(raw)?;
+            let obj: obj::Obj<obj::Position, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_mesh_indices(mesh, obj);
         }
         2 => {
-            let obj: obj::Obj<obj::Vertex> = obj::Obj::new(raw)?;
+
+            let obj: obj::Obj<obj::Vertex, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_normal_data(mesh, obj.vertices.iter().map(|v| v.normal).collect());
             set_mesh_indices(mesh, obj);
         }
         3 => {
-            let obj: obj::Obj<obj::TexturedVertex> = obj::Obj::new(raw)?;
+
+            let obj: obj::Obj<obj::TexturedVertex, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_normal_data(mesh, obj.vertices.iter().map(|v| v.normal).collect());
             set_uv_data(
@@ -107,7 +109,7 @@ fn set_uv_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
     mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
 }
 
-fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T>) {
+fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T, u32>) {
     mesh.set_indices(Some(Indices::U32(
         obj.indices.iter().map(|i| *i as u32).collect(),
     )));
