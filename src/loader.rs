@@ -64,6 +64,8 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
         1 => {
             let obj: obj::Obj<obj::Position, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
+            set_normal_data(mesh, obj.vertices.iter().map(|_| [0., 0., 0.]).collect());
+            set_uv_data(mesh, obj.vertices.iter().map(|_| [0., 0., 0.]).collect());
             set_mesh_indices(mesh, obj);
         }
         2 => {
@@ -71,6 +73,7 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
             let obj: obj::Obj<obj::Vertex, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_normal_data(mesh, obj.vertices.iter().map(|v| v.normal).collect());
+            set_uv_data(mesh, obj.vertices.iter().map(|_| [0., 0., 0.]).collect());
             set_mesh_indices(mesh, obj);
         }
         3 => {
