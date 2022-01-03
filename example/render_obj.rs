@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_obj::*;
 
 fn main() {
-    App::build()
+    App::new()
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(ObjPlugin)
@@ -20,7 +20,7 @@ fn setup(
         material: materials.add(Color::rgb(0.5, 0.4, 0.3).into()),
         ..Default::default()
     });
-    commands.spawn_bundle(LightBundle {
+    commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(4.0, 5.0, 4.0)),
         ..Default::default()
     });

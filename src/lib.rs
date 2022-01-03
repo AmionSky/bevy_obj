@@ -9,7 +9,7 @@ use bevy_asset::AddAsset;
 pub struct ObjPlugin;
 
 impl Plugin for ObjPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_asset_loader::<ObjLoader>();
     }
 }

@@ -1,24 +1,26 @@
 [package]
 name = "bevy_obj"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Csányi István <csanyistvan02@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 description = "A Wavefront .obj mesh asset loader plugin"
 repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
 [dependencies]
-bevy_app = "0.5"
-bevy_asset = "0.5"
-bevy_render = "0.5"
-bevy_utils = "0.5"
-anyhow = "1.0"
+bevy_app = { git = "https://github.com/bevyengine/bevy" }
+bevy_asset = { git = "https://github.com/bevyengine/bevy" }
+bevy_render = { git = "https://github.com/bevyengine/bevy" }
+bevy_utils = { git = "https://github.com/bevyengine/bevy" }
+bevy = { git = "https://github.com/bevyengine/bevy"}
+
+anyhow = "1.0.4"
 thiserror = "1.0"
-obj-rs = { version = "0.6", default-features = false }
+
+obj-rs = { version = "0.7", default-features = false }
 
 [dev-dependencies]
-bevy = "0.5"
 
 [[example]]
 name = "render_obj"
