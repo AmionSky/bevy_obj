@@ -27,9 +27,9 @@ impl AssetLoader for ObjLoader {
 
 #[derive(Error, Debug)]
 pub enum ObjError {
-    #[error("Invalid OBJ file.")]
+    #[error("Invalid OBJ file: {0}")]
     Gltf(#[from] obj::ObjError),
-    #[error("Unknown vertex format.")]
+    #[error("Unknown vertex format")]
     UnknownVertexFormat,
 }
 
