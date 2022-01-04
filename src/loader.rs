@@ -1,8 +1,9 @@
 use anyhow::Result;
+use bevy::prelude::shape;
 use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
 use bevy_render::{
     mesh::{Indices, Mesh, VertexAttributeValues},
-    pipeline::PrimitiveTopology,
+    render_resource::PrimitiveTopology,
 };
 use bevy_utils::BoxedFuture;
 use thiserror::Error;
@@ -65,19 +66,17 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
             let obj: obj::Obj<obj::Position, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_normal_data(mesh, obj.vertices.iter().map(|_| [0., 0., 0.]).collect());
-            set_uv_data(mesh, obj.vertices.iter().map(|_| [0., 0., 0.]).collect());
+            set_uv_data(mesh, obj.vertices.iter().map(|_| [0., 0.]).collect());
             set_mesh_indices(mesh, obj);
         }
         2 => {
-
             let obj: obj::Obj<obj::Vertex, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_normal_data(mesh, obj.vertices.iter().map(|v| v.normal).collect());
-            set_uv_data(mesh, obj.vertices.iter().map(|_| [0., 0., 0.]).collect());
+            set_uv_data(mesh, obj.vertices.iter().map(|_| [0., 0.]).collect());
             set_mesh_indices(mesh, obj);
         }
         3 => {
-
             let obj: obj::Obj<obj::TexturedVertex, u32> = obj::Obj::new(raw)?;
             set_position_data(mesh, obj.vertices.iter().map(|v| v.position).collect());
             set_normal_data(mesh, obj.vertices.iter().map(|v| v.normal).collect());
@@ -86,7 +85,7 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
                 obj.vertices
                     .iter()
                     // Flip UV for correct values
-                    .map(|v| [v.texture[0], 1.0 - v.texture[1], v.texture[2]])
+                    .map(|v| [v.texture[0], 1.0 - v.texture[1]])
                     .collect(),
             );
             set_mesh_indices(mesh, obj);
@@ -97,22 +96,22 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
     Ok(())
 }
 
-fn set_position_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
-    let positions = VertexAttributeValues::Float3(data);
-    mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+fn set_position_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {    
+    // let data = VertexAttributeValues::Float32x3(data.into_iter().map(|x| x).collect());
+    mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, data);
 }
 
 fn set_normal_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
-    let normals = VertexAttributeValues::Float3(data);
-    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    // let data = VertexAttributeValues::Float32x3(data.into_iter().map(|x| x).collect());
+    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, data);
 }
 
-fn set_uv_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
-    let uvs = VertexAttributeValues::Float3(data);
-    mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+fn set_uv_data(mesh: &mut Mesh, data: Vec<[f32; 2]>) {
+    // let data = VertexAttributeValues::Float32x3(data.into_iter().map(|x| x).collect());
+    mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, data);
 }
 
-fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T, u32>) {
+fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T, u32>) {    
     mesh.set_indices(Some(Indices::U32(
         obj.indices.iter().map(|i| *i as u32).collect(),
     )));
