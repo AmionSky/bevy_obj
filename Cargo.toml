@@ -13,14 +13,14 @@ bevy_app = { git = "https://github.com/bevyengine/bevy" }
 bevy_asset = { git = "https://github.com/bevyengine/bevy" }
 bevy_render = { git = "https://github.com/bevyengine/bevy" }
 bevy_utils = { git = "https://github.com/bevyengine/bevy" }
-bevy = { git = "https://github.com/bevyengine/bevy"}
 
-anyhow = "1.0.4"
+anyhow = "1.0"
 thiserror = "1.0"
 
 obj-rs = { version = "0.7", default-features = false }
 
 [dev-dependencies]
+bevy = { git = "https://github.com/bevyengine/bevy"}
 
 [[example]]
 name = "render_obj"

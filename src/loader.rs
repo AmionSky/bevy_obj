@@ -1,8 +1,7 @@
 use anyhow::Result;
-use bevy::prelude::shape;
 use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
 use bevy_render::{
-    mesh::{Indices, Mesh, VertexAttributeValues},
+    mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
 use bevy_utils::BoxedFuture;
@@ -48,16 +47,17 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
     let raw = obj::raw::parse_obj(bytes)?;
 
     // Get the most complete vertex representation
-    //  3 => Position, Normal, Texture
-    //  2 => Position, Normal
     //  1 => Position
-    let mut pnt = 3;
+    //  2 => Position, Normal
+    //  3 => Position, Normal, Texture
+    let mut pnt = 4;
     for polygon in &raw.polygons {
         use obj::raw::object::Polygon;
         match polygon {
             Polygon::P(_) => pnt = std::cmp::min(pnt, 1),
+            Polygon::PT(_) => pnt = std::cmp::min(pnt, 1),
             Polygon::PN(_) => pnt = std::cmp::min(pnt, 2),
-            _ => {}
+            Polygon::PTN(_) => pnt = std::cmp::min(pnt, 3),
         }
     }
 
@@ -96,22 +96,19 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
     Ok(())
 }
 
-fn set_position_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {    
-    // let data = VertexAttributeValues::Float32x3(data.into_iter().map(|x| x).collect());
+fn set_position_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
     mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, data);
 }
 
 fn set_normal_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
-    // let data = VertexAttributeValues::Float32x3(data.into_iter().map(|x| x).collect());
     mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, data);
 }
 
 fn set_uv_data(mesh: &mut Mesh, data: Vec<[f32; 2]>) {
-    // let data = VertexAttributeValues::Float32x3(data.into_iter().map(|x| x).collect());
     mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, data);
 }
 
-fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T, u32>) {    
+fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T, u32>) {
     mesh.set_indices(Some(Indices::U32(
         obj.indices.iter().map(|i| *i as u32).collect(),
     )));
