@@ -97,15 +97,15 @@ fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
 }
 
 fn set_position_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
-    mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, data);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, data);
 }
 
 fn set_normal_data(mesh: &mut Mesh, data: Vec<[f32; 3]>) {
-    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, data);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, data);
 }
 
 fn set_uv_data(mesh: &mut Mesh, data: Vec<[f32; 2]>) {
-    mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, data);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, data);
 }
 
 fn set_mesh_indices<T>(mesh: &mut Mesh, obj: obj::Obj<T, u32>) {
