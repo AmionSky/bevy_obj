@@ -6,6 +6,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(ObjPlugin)
         .add_startup_system(setup)
+        .add_system(spin)
         .run();
 }
 
@@ -14,6 +15,7 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    // Spawn a spinning cube
     commands.spawn_bundle(PbrBundle {
         mesh: asset_server.load("cube.obj"),
         material: materials.add(StandardMaterial {
@@ -21,14 +23,25 @@ fn setup(
             ..Default::default()
         }),
         ..Default::default()
-    });
+    }).insert(Spin);
+
+    // Spawn a light and the camera
     commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(3.0, 4.0, 3.0)),
         ..Default::default()
     });
-    commands.spawn_bundle(PerspectiveCameraBundle {
+    commands.spawn_bundle(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(1.5, 2.7, 4.0))
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
         ..Default::default()
     });
+}
+
+#[derive(Component)]
+struct Spin;
+
+fn spin(time: Res<Time>, mut query: Query<&mut Transform, With<Spin>>) {
+    for mut transform in query.iter_mut() {
+        transform.rotate_local_y(0.1 * time.delta_seconds());
+    }
 }
