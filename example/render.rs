@@ -16,24 +16,27 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Spawn a spinning cube
-    commands.spawn_bundle(PbrBundle {
-        mesh: asset_server.load("cube.obj"),
-        material: materials.add(StandardMaterial {
-            base_color_texture: Some(asset_server.load("cube.png")),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }).insert(Spin);
+    commands.spawn((
+        PbrBundle {
+            mesh: asset_server.load("cube.obj"),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(asset_server.load("cube.png")),
+                ..default()
+            }),
+            ..default()
+        },
+        Spin,
+    ));
 
     // Spawn a light and the camera
-    commands.spawn_bundle(PointLightBundle {
+    commands.spawn(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(3.0, 4.0, 3.0)),
-        ..Default::default()
+        ..default()
     });
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(1.5, 2.7, 4.0))
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        ..Default::default()
+        ..default()
     });
 }
 

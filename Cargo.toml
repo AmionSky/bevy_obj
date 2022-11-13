@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Csányi István <csanyistvan02@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -9,10 +9,10 @@ repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
 [dependencies]
-bevy_app = "0.8"
-bevy_asset = "0.8"
-bevy_render = "0.8"
-bevy_utils = "0.8"
+bevy_app = "0.9"
+bevy_asset = "0.9"
+bevy_render = "0.9"
+bevy_utils = "0.9"
 
 anyhow = "1.0"
 thiserror = "1.0"
@@ -20,7 +20,7 @@ thiserror = "1.0"
 obj-rs = { version = "0.7", default-features = false }
 
 [dev-dependencies]
-bevy = "0.8"
+bevy = "0.9"
 
 [[example]]
 name = "render"
