@@ -13,6 +13,7 @@ bevy_app = "0.9"
 bevy_asset = "0.9"
 bevy_render = "0.9"
 bevy_utils = "0.9"
+bevy_math = "0.9"
 
 anyhow = "1.0"
 thiserror = "1.0"
