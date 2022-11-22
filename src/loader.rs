@@ -38,8 +38,7 @@ async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> Result<(), ObjError> {
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-    load_obj_from_bytes(bytes, &mut mesh)?;
+    let mesh = load_obj_from_bytes(bytes)?;
     load_context.set_default_asset(LoadedAsset::new(mesh));
     Ok(())
 }
@@ -84,7 +83,7 @@ impl From<MeshIndices> for Vec<u32> {
     }
 }
 
-pub fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
+pub fn load_obj_from_bytes(bytes: &[u8]) -> Result<Mesh, ObjError> {
     let raw = obj::raw::parse_obj(bytes)?;
     let vertcount = raw.polygons.len() * 3;
 
@@ -139,6 +138,8 @@ pub fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError
         }
     }
 
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
     if !vertex_texture.is_empty() {
@@ -147,7 +148,7 @@ pub fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError
 
     mesh.set_indices(Some(Indices::U32(indices.into())));
 
-    Ok(())
+    Ok(mesh)
 }
 
 fn convert_position(raw: &RawObj, index: usize) -> [f32; 3] {
