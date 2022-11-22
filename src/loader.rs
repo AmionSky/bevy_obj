@@ -84,7 +84,7 @@ impl From<MeshIndices> for Vec<u32> {
     }
 }
 
-fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
+pub fn load_obj_from_bytes(bytes: &[u8], mesh: &mut Mesh) -> Result<(), ObjError> {
     let raw = obj::raw::parse_obj(bytes)?;
     let vertcount = raw.polygons.len() * 3;
 
