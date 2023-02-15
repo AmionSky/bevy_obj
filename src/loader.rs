@@ -29,7 +29,7 @@ impl AssetLoader for ObjLoader {
 #[derive(Error, Debug)]
 pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
-    Gltf(#[from] obj::ObjError),
+    InvalidFile(#[from] obj::ObjError),
     #[error("Mesh is not triangulated.")]
     NonTriangulatedMesh,
 }
