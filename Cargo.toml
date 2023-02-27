@@ -1,10 +1,11 @@
 [package]
 name = "bevy_obj"
 version = "0.9.1"
-authors = ["Csányi István <csanyistvan02@gmail.com>"]
+authors = ["Csányi István <icsanyi96@gmail.com>"]
 edition = "2021"
 license = "MIT"
-description = "A Wavefront .obj mesh asset loader plugin"
+description = "A Wavefront .obj mesh asset loader plugin for the Bevy engine"
+keywords = ["bevy", "obj"]
 repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
