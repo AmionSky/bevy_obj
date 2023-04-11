@@ -18,7 +18,7 @@ bevy_math = "0.9"
 anyhow = "1.0"
 thiserror = "1.0"
 
-obj-rs = { version = "0.7", default-features = false }
+tobj = "3.2"
 
 [dev-dependencies]
 bevy = "0.9"
