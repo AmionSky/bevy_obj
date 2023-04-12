@@ -52,6 +52,7 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let mut vertex_normal = Vec::new();
     let mut vertex_texture = Vec::new();
     for model in obj.0 {
+        let index_offset = vertex_position.len() as u32; // Offset of the indices
         indices.reserve(model.mesh.indices.len());
         vertex_position.reserve(model.mesh.positions.len() / 3);
         vertex_normal.reserve(model.mesh.normals.len() / 3);
@@ -77,10 +78,11 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
                 .chunks_exact(2)
                 .map(|t| [t[0], 1.0 - t[1]]),
         );
-        indices.extend(model.mesh.indices);
+        indices.extend(model.mesh.indices.iter().map(|i| i + index_offset));
     }
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    mesh.set_indices(Some(Indices::U32(indices)));
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
     if !vertex_texture.is_empty() {
@@ -90,10 +92,9 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     if !vertex_normal.is_empty() {
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
     } else {
+        mesh.duplicate_vertices();
         mesh.compute_flat_normals();
     }
-
-    mesh.set_indices(Some(Indices::U32(indices)));
 
     Ok(mesh)
 }
