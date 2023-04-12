@@ -4,8 +4,7 @@ use bevy_render::{
     mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
-use bevy_utils::{BoxedFuture, HashMap};
-use obj::raw::{object::Polygon, RawObj};
+use bevy_utils::BoxedFuture;
 use thiserror::Error;
 
 #[derive(Default)]
@@ -29,9 +28,7 @@ impl AssetLoader for ObjLoader {
 #[derive(Error, Debug)]
 pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
-    InvalidFile(#[from] obj::ObjError),
-    #[error("Mesh is not triangulated.")]
-    NonTriangulatedMesh,
+    InvalidFile(#[from] tobj::LoadError),
 }
 
 async fn load_obj<'a, 'b>(
@@ -43,144 +40,61 @@ async fn load_obj<'a, 'b>(
     Ok(())
 }
 
-type VertexKey = (usize, usize, usize);
-
-struct MeshIndices {
-    indices: Vec<u32>,
-    saved: HashMap<VertexKey, u32>,
-    next: u32,
+fn load_mtl(_path: &std::path::Path) -> tobj::MTLLoadResult {
+    Err(tobj::LoadError::OpenFileFailed)
 }
 
-impl MeshIndices {
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            indices: Vec::with_capacity(capacity),
-            saved: HashMap::with_capacity(capacity),
-            next: 0,
-        }
-    }
-
-    pub fn insert<F: FnOnce()>(&mut self, key: VertexKey, create_vertex: F) {
-        // Check if the vertex is already saved
-        match self.saved.get(&key) {
-            Some(index) => self.indices.push(*index), // If saved, just use the existing index
-            None => {
-                // Save the index to both the indices and saved
-                self.indices.push(self.next);
-                self.saved.insert(key, self.next);
-                // Increment next index
-                self.next += 1;
-                // Create a vertex externally
-                create_vertex()
-            }
-        }
-    }
-}
-
-impl From<MeshIndices> for Vec<u32> {
-    fn from(val: MeshIndices) -> Self {
-        val.indices
-    }
-}
-
-pub fn load_obj_from_bytes(bytes: &[u8]) -> Result<Mesh, ObjError> {
-    let raw = obj::raw::parse_obj(bytes)?;
-    let vertcount = raw.polygons.len() * 3;
-
-    let mut indices = MeshIndices::new(vertcount);
-
-    let mut vertex_position = Vec::with_capacity(vertcount);
-    let mut vertex_normal = Vec::with_capacity(vertcount);
-    let mut vertex_texture = Vec::with_capacity(vertcount);
-
-    for polygon in &raw.polygons {
-        match polygon {
-            Polygon::P(poly) if poly.len() == 3 => {
-                let normal = calculate_normal(&raw, poly);
-
-                for ipos in poly {
-                    indices.insert((*ipos, 0, 0), || {
-                        vertex_position.push(convert_position(&raw, *ipos));
-                        vertex_normal.push(normal);
-                    });
-                }
-            }
-            Polygon::PT(poly) if poly.len() == 3 => {
-                let triangle: Vec<usize> = poly.iter().map(|(ipos, _)| *ipos).collect();
-                let normal = calculate_normal(&raw, &triangle);
-
-                for (ipos, itex) in poly {
-                    indices.insert((*ipos, 0, *itex), || {
-                        vertex_position.push(convert_position(&raw, *ipos));
-                        vertex_normal.push(normal);
-                        vertex_texture.push(convert_texture(&raw, *itex));
-                    });
-                }
-            }
-            Polygon::PN(poly) if poly.len() == 3 => {
-                for (ipos, inorm) in poly {
-                    indices.insert((*ipos, *inorm, 0), || {
-                        vertex_position.push(convert_position(&raw, *ipos));
-                        vertex_normal.push(convert_normal(&raw, *inorm));
-                    });
-                }
-            }
-            Polygon::PTN(poly) if poly.len() == 3 => {
-                for (ipos, itex, inorm) in poly {
-                    indices.insert((*ipos, *inorm, *itex), || {
-                        vertex_position.push(convert_position(&raw, *ipos));
-                        vertex_normal.push(convert_normal(&raw, *inorm));
-                        vertex_texture.push(convert_texture(&raw, *itex));
-                    });
-                }
-            }
-            _ => return Err(ObjError::NonTriangulatedMesh),
-        }
+pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
+    let options = tobj::GPU_LOAD_OPTIONS;
+    let obj = tobj::load_obj_buf(&mut bytes, &options, load_mtl)?;
+    let mut indices = Vec::new();
+    let mut vertex_position = Vec::new();
+    let mut vertex_normal = Vec::new();
+    let mut vertex_texture = Vec::new();
+    for model in obj.0 {
+        let index_offset = vertex_position.len() as u32; // Offset of the indices
+        indices.reserve(model.mesh.indices.len());
+        vertex_position.reserve(model.mesh.positions.len() / 3);
+        vertex_normal.reserve(model.mesh.normals.len() / 3);
+        vertex_texture.reserve(model.mesh.texcoords.len() / 2);
+        vertex_position.extend(
+            model
+                .mesh
+                .positions
+                .chunks_exact(3)
+                .map(|v| [v[0], v[1], v[2]]),
+        );
+        vertex_normal.extend(
+            model
+                .mesh
+                .normals
+                .chunks_exact(3)
+                .map(|n| [n[0], n[1], n[2]]),
+        );
+        vertex_texture.extend(
+            model
+                .mesh
+                .texcoords
+                .chunks_exact(2)
+                .map(|t| [t[0], 1.0 - t[1]]),
+        );
+        indices.extend(model.mesh.indices.iter().map(|i| i + index_offset));
     }
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    mesh.set_indices(Some(Indices::U32(indices)));
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
     if !vertex_texture.is_empty() {
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vertex_texture);
     }
 
-    mesh.set_indices(Some(Indices::U32(indices.into())));
+    if !vertex_normal.is_empty() {
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
+    } else {
+        mesh.duplicate_vertices();
+        mesh.compute_flat_normals();
+    }
 
     Ok(mesh)
-}
-
-fn convert_position(raw: &RawObj, index: usize) -> [f32; 3] {
-    let position = raw.positions[index];
-    [position.0, position.1, position.2]
-}
-
-fn convert_normal(raw: &RawObj, index: usize) -> [f32; 3] {
-    let normal = raw.normals[index];
-    [normal.0, normal.1, normal.2]
-}
-
-fn convert_texture(raw: &RawObj, index: usize) -> [f32; 2] {
-    let tex_coord = raw.tex_coords[index];
-    // Flip UV for correct values
-    [tex_coord.0, 1.0 - tex_coord.1]
-}
-
-/// Simple and inaccurate normal calculation
-fn calculate_normal(raw: &RawObj, polygon: &[usize]) -> [f32; 3] {
-    use bevy_math::Vec3;
-
-    // Extract triangle
-    let triangle: Vec<Vec3> = polygon
-        .iter()
-        .map(|index| Vec3::from(convert_position(raw, *index)))
-        .collect();
-
-    // Calculate normal
-    let v1 = triangle[1] - triangle[0];
-    let v2 = triangle[2] - triangle[0];
-    let n = v1.cross(v2);
-
-    n.to_array()
 }
