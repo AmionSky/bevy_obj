@@ -27,7 +27,6 @@ impl AssetLoader for ObjLoader {
 
 #[derive(Error, Debug)]
 pub enum ObjError {
-    //Gltf(#[from] obj::ObjError),
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
     #[error("Unexpected number of meshes, only 1 is supported")]
@@ -43,13 +42,12 @@ async fn load_obj<'a, 'b>(
     Ok(())
 }
 
-fn load_mtl(path: &std::path::Path) -> tobj::MTLLoadResult {
+fn load_mtl(_path: &std::path::Path) -> tobj::MTLLoadResult {
+    //TODO(luca) Implement mtl loading
     Err(tobj::LoadError::OpenFileFailed)
 }
 
 pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
-    // TODO(luca) Consider removing single_index that comes with GPU load options
-    // for memory efficiency
     let options = tobj::GPU_LOAD_OPTIONS;
     match tobj::load_obj_buf(&mut bytes, &options, load_mtl) {
         Ok(obj) => {
@@ -58,31 +56,22 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
             }
             let mesh = &obj.0[0].mesh;
 
-            let mut vertex_position = Vec::with_capacity(mesh.indices.len());
-            let mut vertex_normal = Vec::with_capacity(mesh.indices.len());
-            let mut vertex_texture = Vec::with_capacity(mesh.indices.len());
+            let vertex_position: Vec<[f32; 3]> = mesh
+                .positions
+                .chunks_exact(3)
+                .map(|v| [v[0], v[1], v[2]])
+                .collect();
+            let vertex_normal: Vec<[f32; 3]> = mesh
+                .normals
+                .chunks_exact(3)
+                .map(|n| [n[0], n[1], n[2]])
+                .collect();
+            let vertex_texture: Vec<[f32; 2]> = mesh
+                .texcoords
+                .chunks_exact(2)
+                .map(|t| [t[0], 1.0 - t[1]])
+                .collect();
 
-            for idx in &mesh.indices {
-                let idx = *idx as usize;
-                let pos = [
-                    mesh.positions[3 * idx],
-                    mesh.positions[3 * idx + 1],
-                    mesh.positions[3 * idx + 2],
-                ];
-                vertex_position.push(pos);
-                if !mesh.normals.is_empty() {
-                    let norm = [
-                        mesh.normals[3 * idx],
-                        mesh.normals[3 * idx + 1],
-                        mesh.normals[3 * idx + 2],
-                    ];
-                    vertex_normal.push(norm);
-                }
-                if !mesh.texcoords.is_empty() {
-                    let texcoord = [mesh.texcoords[2 * idx], 1.0 - mesh.texcoords[2 * idx + 1]];
-                    vertex_texture.push(texcoord);
-                }
-            }
             let mut bevy_mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
             bevy_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
@@ -96,8 +85,7 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
                 bevy_mesh.compute_flat_normals();
             }
 
-            let indices = (0..mesh.indices.len()).map(|x| x as u32).collect();
-            bevy_mesh.set_indices(Some(Indices::U32(indices)));
+            bevy_mesh.set_indices(Some(Indices::U32(mesh.indices.clone())));
 
             Ok(bevy_mesh)
         }
