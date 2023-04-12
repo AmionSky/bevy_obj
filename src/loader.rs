@@ -80,20 +80,20 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
         indices.extend(model.mesh.indices);
     }
 
-    let mut bevy_mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
-    bevy_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
     if !vertex_texture.is_empty() {
-        bevy_mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vertex_texture);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vertex_texture);
     }
 
     if !vertex_normal.is_empty() {
-        bevy_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
     } else {
-        bevy_mesh.compute_flat_normals();
+        mesh.compute_flat_normals();
     }
 
-    bevy_mesh.set_indices(Some(Indices::U32(indices)));
+    mesh.set_indices(Some(Indices::U32(indices)));
 
-    Ok(bevy_mesh)
+    Ok(mesh)
 }
