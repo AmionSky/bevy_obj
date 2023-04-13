@@ -1,23 +1,30 @@
 use anyhow::Result;
-use bevy_asset::{AssetLoader, AssetPath, LoadContext, LoadedAsset};
+use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
 use bevy_render::{
     mesh::{Indices, Mesh},
-    prelude::{Color, SpatialBundle},
     render_resource::PrimitiveTopology,
-    renderer::RenderDevice,
-    texture::{CompressedImageFormats, Image, ImageType},
 };
 use bevy_utils::BoxedFuture;
-#[cfg(feature = "scene")]
-use bevy_ecs::world::{FromWorld, World};
-#[cfg(feature = "scene")]
-use bevy_scene::Scene;
-#[cfg(feature = "scene")]
-use bevy_pbr::{PbrBundle, StandardMaterial};
-#[cfg(feature = "scene")]
-use bevy_hierarchy::BuildWorldChildren;
 use thiserror::Error;
+#[cfg(feature = "scene")]
+use {
+    bevy_asset::AssetPath,
+    bevy_ecs::world::{FromWorld, World},
+    bevy_hierarchy::BuildWorldChildren,
+    bevy_pbr::{PbrBundle, StandardMaterial},
+    bevy_render::{
+        prelude::{Color, SpatialBundle},
+        renderer::RenderDevice,
+        texture::{CompressedImageFormats, Image, ImageType},
+    },
+    bevy_scene::Scene,
+};
 
+#[cfg(not(feature = "scene"))]
+#[derive(Default)]
+pub struct ObjLoader;
+
+#[cfg(feature = "scene")]
 pub struct ObjLoader {
     supported_compressed_formats: CompressedImageFormats,
 }
@@ -28,7 +35,15 @@ impl AssetLoader for ObjLoader {
         bytes: &'a [u8],
         load_context: &'a mut bevy_asset::LoadContext,
     ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
-        Box::pin(async move { Ok(load_obj(bytes, load_context, self.supported_compressed_formats).await?) })
+        Box::pin(async move {
+            Ok(load_obj(
+                bytes,
+                load_context,
+                #[cfg(feature = "scene")]
+                self.supported_compressed_formats,
+            )
+            .await?)
+        })
     }
 
     fn extensions(&self) -> &[&str] {
@@ -37,6 +52,7 @@ impl AssetLoader for ObjLoader {
     }
 }
 
+#[cfg(feature = "scene")]
 impl FromWorld for ObjLoader {
     fn from_world(world: &mut World) -> Self {
         let supported_compressed_formats = match world.get_resource::<RenderDevice>() {
@@ -59,7 +75,7 @@ pub enum ObjError {
 async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
+    #[cfg(feature = "scene")] supported_compressed_formats: CompressedImageFormats,
 ) -> Result<(), ObjError> {
     #[cfg(not(feature = "scene"))]
     {
@@ -75,29 +91,25 @@ async fn load_obj<'a, 'b>(
 }
 
 #[cfg(feature = "scene")]
-fn load_mtl(_path: &std::path::Path) -> tobj::MTLLoadResult {
-    println!("Looking for materials");
-    Err(tobj::LoadError::OpenFileFailed)
-}
-
-#[cfg(feature = "scene")]
-async fn load_obj_from_bytes<'a, 'b>(mut bytes: &'a [u8], load_context: &'a mut LoadContext<'b>, supported_compressed_formats: CompressedImageFormats) -> Result<Scene, ObjError> {
+async fn load_obj_from_bytes<'a, 'b>(
+    mut bytes: &'a [u8],
+    load_context: &'a mut LoadContext<'b>,
+    supported_compressed_formats: CompressedImageFormats,
+) -> Result<Scene, ObjError> {
     println!("Loading scene");
     let options = tobj::GPU_LOAD_OPTIONS;
     dbg!(&load_context.path());
-    let obj = tobj::load_obj_buf(&mut bytes, &options,
-         |p| {
-            let mut path = std::path::PathBuf::new();
-            // TODO(luca) fix this and get proper path
-            //let mut path = load_context.asset_io().get_base_path();
-            path.push("assets");
-            path.push(p);
-            let base_path = path.as_path();
-            //let base_path = load_context.path().with_file_name(p);
-            dbg!(&base_path);
-            tobj::load_mtl(base_path)
-         }
-    )?;
+    let obj = tobj::load_obj_buf(&mut bytes, &options, |p| {
+        let mut path = std::path::PathBuf::new();
+        // TODO(luca) fix this and get proper path
+        //let mut path = load_context.asset_io().get_base_path();
+        path.push("assets");
+        path.push(p);
+        let base_path = path.as_path();
+        //let base_path = load_context.path().with_file_name(p);
+        dbg!(&base_path);
+        tobj::load_mtl(base_path)
+    })?;
     let models = obj.0;
     // TODO(luca) should we just populate standard materials here instead?
     let materials = obj.1?;
@@ -122,42 +134,34 @@ async fn load_obj_from_bytes<'a, 'b>(mut bytes: &'a [u8], load_context: &'a mut 
             let bytes = load_context.asset_io().load_path(&path).await.unwrap();
             let extension = ImageType::Extension(path.extension().unwrap().to_str().unwrap());
             let is_srgb = false;
-            let img = Image::from_buffer(
-                &bytes,
-                extension,
-                supported_compressed_formats,
-                is_srgb,
-            ).unwrap();
+            let img = Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)
+                .unwrap();
             //load_context.set_labeled_asset(
             material.base_color_texture = Some(load_context.get_handle(texture_asset_path));
-            let mut mat_asset = LoadedAsset::new(material);
             //mat_asset.add_dependency(texture_asset_path);
             load_context.set_labeled_asset(filename.unwrap(), LoadedAsset::new(img));
-            load_context.set_labeled_asset(&mat.name, mat_asset);
+            load_context.set_labeled_asset(&mat.name, LoadedAsset::new(material));
         }
     }
     for model in models {
-        let vertex_position: Vec<[f32; 3]> =
-            model
-                .mesh
-                .positions
-                .chunks_exact(3)
-                .map(|v| [v[0], v[1], v[2]])
-                .collect();
-        let vertex_normal: Vec<[f32; 3]> =
-            model
-                .mesh
-                .normals
-                .chunks_exact(3)
-                .map(|n| [n[0], n[1], n[2]])
-                .collect();
-        let vertex_texture: Vec<[f32; 2]> =
-            model
-                .mesh
-                .texcoords
-                .chunks_exact(2)
-                .map(|t| [t[0], 1.0 - t[1]])
-                .collect();
+        let vertex_position: Vec<[f32; 3]> = model
+            .mesh
+            .positions
+            .chunks_exact(3)
+            .map(|v| [v[0], v[1], v[2]])
+            .collect();
+        let vertex_normal: Vec<[f32; 3]> = model
+            .mesh
+            .normals
+            .chunks_exact(3)
+            .map(|n| [n[0], n[1], n[2]])
+            .collect();
+        let vertex_texture: Vec<[f32; 2]> = model
+            .mesh
+            .texcoords
+            .chunks_exact(2)
+            .map(|t| [t[0], 1.0 - t[1]])
+            .collect();
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
@@ -176,23 +180,31 @@ async fn load_obj_from_bytes<'a, 'b>(mut bytes: &'a [u8], load_context: &'a mut 
         load_context.set_labeled_asset(&model.name, LoadedAsset::new(mesh));
         // Now create the material
         let mesh_asset_path = AssetPath::new_ref(load_context.path(), Some(&model.name));
-        let pbr_id = if let Some(mat_name) = model.mesh.material_id.and_then(|id| materials.get(id)).map(|mat| mat.name.clone()) {
+        let pbr_id = if let Some(mat_name) = model
+            .mesh
+            .material_id
+            .and_then(|id| materials.get(id))
+            .map(|mat| mat.name.clone())
+        {
             let material_asset_path = AssetPath::new_ref(load_context.path(), Some(&mat_name));
             println!("Fetching material");
-            world.spawn(PbrBundle {
-                mesh: load_context.get_handle(mesh_asset_path),
-                material: load_context.get_handle(material_asset_path),
-                ..Default::default()
-            }).id()
+            world
+                .spawn(PbrBundle {
+                    mesh: load_context.get_handle(mesh_asset_path),
+                    material: load_context.get_handle(material_asset_path),
+                    ..Default::default()
+                })
+                .id()
         } else {
-            world.spawn(PbrBundle {
-                mesh: load_context.get_handle(mesh_asset_path),
-                ..Default::default()
-            }).id()
+            world
+                .spawn(PbrBundle {
+                    mesh: load_context.get_handle(mesh_asset_path),
+                    ..Default::default()
+                })
+                .id()
         };
         world.entity_mut(world_id).push_children(&[pbr_id]);
     }
-
 
     println!("Finished loading scene");
     dbg!(&world);

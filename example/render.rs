@@ -20,12 +20,10 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: asset_server.load("cube.obj"),
-            /*
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(asset_server.load("cube.png")),
                 ..default()
             }),
-            */
             ..default()
         },
         Spin,
