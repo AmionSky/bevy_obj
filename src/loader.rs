@@ -71,6 +71,7 @@ impl FromWorld for ObjLoader {
 pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
+    #[cfg(feature = "scene")]
     #[error("Invalid image file for texture: {0}")]
     InvalidImageFile(PathBuf),
     #[error("Asset reading failed: {0}")]
@@ -97,6 +98,7 @@ async fn load_obj<'a, 'b>(
     Ok(())
 }
 
+#[cfg(feature = "scene")]
 async fn load_texture_image<'a, 'b>(
     image_path: &'a str,
     load_context: &'a mut LoadContext<'b>,
@@ -182,6 +184,7 @@ async fn load_obj_from_bytes<'a, 'b>(
             .collect();
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.set_indices(Some(Indices::U32(model.mesh.indices)));
 
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
         if !vertex_texture.is_empty() {
@@ -191,11 +194,12 @@ async fn load_obj_from_bytes<'a, 'b>(
         if !vertex_normal.is_empty() {
             mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
         } else {
+            mesh.duplicate_vertices();
             mesh.compute_flat_normals();
         }
 
-        mesh.set_indices(Some(Indices::U32(model.mesh.indices)));
         load_context.set_labeled_asset(&model.name, LoadedAsset::new(mesh));
+
         // Now create the material
         let mesh_asset_path = AssetPath::new_ref(load_context.path(), Some(&model.name));
         let pbr_id = if let Some(mat_name) = model
