@@ -97,6 +97,26 @@ async fn load_obj<'a, 'b>(
     Ok(())
 }
 
+async fn load_texture_image<'a, 'b>(
+    image_path: &'a str,
+    load_context: &'a mut LoadContext<'b>,
+    supported_compressed_formats: CompressedImageFormats,
+) -> Result<(Image, String), ObjError> {
+    let path = Path::new(&image_path);
+    let filename = path
+        .to_str()
+        .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?;
+    let extension = ImageType::Extension(
+        path.extension()
+            .and_then(|e| e.to_str())
+            .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
+    );
+    let bytes = load_context.asset_io().load_path(&path).await?;
+    // TODO(luca) confirm value of is_srgb
+    let is_srgb = false;
+    Ok((Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)?, filename.to_string()))
+}
+
 #[cfg(feature = "scene")]
 async fn load_obj_from_bytes<'a, 'b>(
     mut bytes: &'a [u8],
@@ -117,7 +137,6 @@ async fn load_obj_from_bytes<'a, 'b>(
     })
     .await?;
     let models = obj.0;
-    // TODO(luca) should we just populate standard materials here instead?
     let materials = obj.1?;
     let mut world = World::default();
     let world_id = world.spawn(SpatialBundle::VISIBLE_IDENTITY).id();
@@ -128,25 +147,19 @@ async fn load_obj_from_bytes<'a, 'b>(
             ..Default::default()
         };
         if !mat.diffuse_texture.is_empty() {
-            // Load image
-            let path = Path::new(&mat.diffuse_texture);
-            let filename = path
-                .to_str()
-                .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?;
-            let extension = ImageType::Extension(
-                path.extension()
-                    .and_then(|e| e.to_str())
-                    .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
-            );
-            let bytes = load_context.asset_io().load_path(&path).await?;
-            // TODO(luca) confirm value of is_srgb
-            let is_srgb = false;
-            let img = Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)?;
-            let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(filename));
+            let (img, filename) = load_texture_image(&mat.diffuse_texture, load_context, supported_compressed_formats).await?;
+            let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(&filename));
             material.base_color_texture = Some(load_context.get_handle(texture_asset_path));
-            load_context.set_labeled_asset(filename, LoadedAsset::new(img));
-            load_context.set_labeled_asset(&mat.name, LoadedAsset::new(material));
+            load_context.set_labeled_asset(&filename, LoadedAsset::new(img));
         }
+        if !mat.normal_texture.is_empty() {
+            let (img, filename) = load_texture_image(&mat.normal_texture, load_context, supported_compressed_formats).await?;
+            let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(&filename));
+            material.normal_map_texture = Some(load_context.get_handle(texture_asset_path));
+            load_context.set_labeled_asset(&filename, LoadedAsset::new(img));
+        }
+
+        load_context.set_labeled_asset(&mat.name, LoadedAsset::new(material));
     }
     for model in models {
         let vertex_position: Vec<[f32; 3]> = model
