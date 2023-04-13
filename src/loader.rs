@@ -18,6 +18,7 @@ use {
         texture::{CompressedImageFormats, Image, ImageType},
     },
     bevy_scene::Scene,
+    std::path::{Path, PathBuf},
 };
 
 #[cfg(not(feature = "scene"))]
@@ -70,6 +71,12 @@ impl FromWorld for ObjLoader {
 pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
+    #[error("Invalid image file for texture: {0}")]
+    InvalidImageFile(PathBuf),
+    #[error("Asset reading failed: {0}")]
+    AssetIOError(#[from] bevy_asset::AssetIoError),
+    #[error("Texture conversion failed: {0}")]
+    TextureError(#[from] bevy_render::texture::TextureError),
 }
 
 async fn load_obj<'a, 'b>(
@@ -101,8 +108,12 @@ async fn load_obj_from_bytes<'a, 'b>(
     let asset_io = &load_context.asset_io();
     let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
         // TODO(luca) error handling here
-        let bytes = asset_io.load_path(std::path::Path::new(&p)).await.unwrap();
-        tobj::load_mtl_buf(&mut bytes.as_slice())
+        asset_io
+            .load_path(Path::new(&p))
+            .await
+            .map_or(Err(tobj::LoadError::OpenFileFailed), |bytes| {
+                tobj::load_mtl_buf(&mut bytes.as_slice())
+            })
     })
     .await?;
     let models = obj.0;
@@ -111,24 +122,26 @@ async fn load_obj_from_bytes<'a, 'b>(
     let mut world = World::default();
     let world_id = world.spawn(SpatialBundle::VISIBLE_IDENTITY).id();
     for mat in &materials {
-        println!("Found material");
+        // TODO(luca) check other material properties
         let mut material = StandardMaterial {
             base_color: Color::rgb(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]),
             ..Default::default()
         };
         if !mat.diffuse_texture.is_empty() {
-            println!("Found texture");
             // Load image
-            let path = std::path::Path::new(&mat.diffuse_texture);
-            let filename = path.file_name().unwrap().to_str().unwrap();
-            // TODO(luca) error handling in load_path
-
-            let bytes = load_context.asset_io().load_path(&path).await.unwrap();
-            let extension = ImageType::Extension(path.extension().unwrap().to_str().unwrap());
+            let path = Path::new(&mat.diffuse_texture);
+            let filename = path
+                .to_str()
+                .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?;
+            let extension = ImageType::Extension(
+                path.extension()
+                    .and_then(|e| e.to_str())
+                    .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
+            );
+            let bytes = load_context.asset_io().load_path(&path).await?;
             // TODO(luca) confirm value of is_srgb
             let is_srgb = false;
-            let img = Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)
-                .unwrap();
+            let img = Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)?;
             let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(filename));
             material.base_color_texture = Some(load_context.get_handle(texture_asset_path));
             load_context.set_labeled_asset(filename, LoadedAsset::new(img));
@@ -179,7 +192,6 @@ async fn load_obj_from_bytes<'a, 'b>(
             .map(|mat| mat.name.clone())
         {
             let material_asset_path = AssetPath::new_ref(load_context.path(), Some(&mat_name));
-            println!("Fetching material");
             world
                 .spawn(PbrBundle {
                     mesh: load_context.get_handle(mesh_asset_path),
@@ -198,8 +210,6 @@ async fn load_obj_from_bytes<'a, 'b>(
         world.entity_mut(world_id).push_children(&[pbr_id]);
     }
 
-    println!("Finished loading scene");
-    dbg!(&world);
     Ok(Scene::new(world))
 }
 
