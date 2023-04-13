@@ -126,9 +126,11 @@ async fn load_obj_from_bytes<'a, 'b>(
 ) -> Result<Scene, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
     let asset_io = &load_context.asset_io();
+    let ctx_path = load_context.path();
     let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
+        let asset_path = ctx_path.parent().unwrap().join(p);
         asset_io
-            .load_path(Path::new(&p))
+            .load_path(&asset_path)
             .await
             .map_or(Err(tobj::LoadError::OpenFileFailed), |bytes| {
                 tobj::load_mtl_buf(&mut bytes.as_slice())
