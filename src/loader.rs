@@ -138,7 +138,7 @@ async fn load_obj_from_bytes<'a, 'b>(
     let models = obj.0;
     let materials = obj.1?;
     let mut world = World::default();
-    let world_id = world.spawn(SpatialBundle::VISIBLE_IDENTITY).id();
+    let world_id = world.spawn(SpatialBundle::INHERITED_IDENTITY).id();
     for mat in &materials {
         // TODO(luca) check other material properties
         let mut material = StandardMaterial {

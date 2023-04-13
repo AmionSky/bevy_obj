@@ -10,14 +10,14 @@ repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
 [dependencies]
-bevy_app = "0.9"
-bevy_asset = "0.9"
-bevy_render = "0.9"
-bevy_utils = "0.9"
-bevy_scene = { version = "0.9", optional = true}
-bevy_ecs  = { version = "0.9", optional = true}
-bevy_pbr = { version = "0.9", optional = true}
-bevy_hierarchy = { version = "0.9", optional = true}
+bevy_app = "0.10"
+bevy_asset = "0.10"
+bevy_render = "0.10"
+bevy_utils = "0.10"
+bevy_ecs = "0.10"
+bevy_scene = { version = "0.10", optional = true}
+bevy_pbr = { version = "0.10", optional = true}
+bevy_hierarchy = { version = "0.10", optional = true}
 
 anyhow = "1.0"
 thiserror = "1.0"
@@ -28,7 +28,7 @@ tobj = { version = "3.2", features = ["async"] }
 bevy = "0.10"
 
 [features]
-scene = ["dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_hierarchy", "dep:bevy_ecs"]
+scene = ["dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_hierarchy"]
 
 [[example]]
 name = "render"
