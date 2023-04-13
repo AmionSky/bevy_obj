@@ -98,18 +98,13 @@ async fn load_obj_from_bytes<'a, 'b>(
 ) -> Result<Scene, ObjError> {
     println!("Loading scene");
     let options = tobj::GPU_LOAD_OPTIONS;
-    dbg!(&load_context.path());
-    let obj = tobj::load_obj_buf(&mut bytes, &options, |p| {
-        let mut path = std::path::PathBuf::new();
-        // TODO(luca) fix this and get proper path
-        //let mut path = load_context.asset_io().get_base_path();
-        path.push("assets");
-        path.push(p);
-        let base_path = path.as_path();
-        //let base_path = load_context.path().with_file_name(p);
-        dbg!(&base_path);
-        tobj::load_mtl(base_path)
-    })?;
+    let asset_io = &load_context.asset_io();
+    let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
+        // TODO(luca) error handling here
+        let bytes = asset_io.load_path(std::path::Path::new(&p)).await.unwrap();
+        tobj::load_mtl_buf(&mut bytes.as_slice())
+    })
+    .await?;
     let models = obj.0;
     // TODO(luca) should we just populate standard materials here instead?
     let materials = obj.1?;
@@ -121,25 +116,22 @@ async fn load_obj_from_bytes<'a, 'b>(
             base_color: Color::rgb(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]),
             ..Default::default()
         };
-        if mat.diffuse_texture.len() > 0 {
+        if !mat.diffuse_texture.is_empty() {
             println!("Found texture");
             // Load image
-            let mut path = std::path::PathBuf::new();
-            // TODO(luca) fix this and get proper path
-            path.push(mat.diffuse_texture.clone());
+            let path = std::path::Path::new(&mat.diffuse_texture);
+            let filename = path.file_name().unwrap().to_str().unwrap();
             // TODO(luca) error handling in load_path
-            let filename = path.file_name().and_then(|p| p.to_str());
-            let texture_asset_path = AssetPath::new_ref(load_context.path(), filename);
 
             let bytes = load_context.asset_io().load_path(&path).await.unwrap();
             let extension = ImageType::Extension(path.extension().unwrap().to_str().unwrap());
+            // TODO(luca) confirm value of is_srgb
             let is_srgb = false;
             let img = Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)
                 .unwrap();
-            //load_context.set_labeled_asset(
+            let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(filename));
             material.base_color_texture = Some(load_context.get_handle(texture_asset_path));
-            //mat_asset.add_dependency(texture_asset_path);
-            load_context.set_labeled_asset(filename.unwrap(), LoadedAsset::new(img));
+            load_context.set_labeled_asset(filename, LoadedAsset::new(img));
             load_context.set_labeled_asset(&mat.name, LoadedAsset::new(material));
         }
     }
@@ -212,14 +204,11 @@ async fn load_obj_from_bytes<'a, 'b>(
 }
 
 #[cfg(not(feature = "scene"))]
-fn load_mtl(_path: &std::path::Path) -> tobj::MTLLoadResult {
-    Err(tobj::LoadError::OpenFileFailed)
-}
-
-#[cfg(not(feature = "scene"))]
 pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
-    let obj = tobj::load_obj_buf(&mut bytes, &options, load_mtl)?;
+    let obj = tobj::load_obj_buf(&mut bytes, &options, |_m| {
+        Err(tobj::LoadError::OpenFileFailed)
+    })?;
     let mut indices = Vec::new();
     let mut vertex_position = Vec::new();
     let mut vertex_normal = Vec::new();
