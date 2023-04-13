@@ -109,7 +109,7 @@ async fn load_texture_image<'a, 'b>(
             .and_then(|e| e.to_str())
             .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
     );
-    let bytes = load_context.asset_io().load_path(&path).await?;
+    let bytes = load_context.asset_io().load_path(path).await?;
     // TODO(luca) confirm value of is_srgb
     let is_srgb = true;
     Ok((
@@ -127,7 +127,6 @@ async fn load_obj_from_bytes<'a, 'b>(
     let options = tobj::GPU_LOAD_OPTIONS;
     let asset_io = &load_context.asset_io();
     let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
-        // TODO(luca) error handling here
         asset_io
             .load_path(Path::new(&p))
             .await
