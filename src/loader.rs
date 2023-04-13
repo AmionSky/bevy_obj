@@ -34,7 +34,7 @@ impl AssetLoader for ObjLoader {
     fn load<'a>(
         &'a self,
         bytes: &'a [u8],
-        load_context: &'a mut bevy_asset::LoadContext,
+        load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
         Box::pin(async move {
             Ok(load_obj(
