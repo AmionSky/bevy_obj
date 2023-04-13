@@ -16,13 +16,25 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Spawn a spinning cube
+    #[cfg(not(feature = "scene"))]
     commands.spawn((
         PbrBundle {
             mesh: asset_server.load("cube.obj"),
+            /*
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(asset_server.load("cube.png")),
                 ..default()
             }),
+            */
+            ..default()
+        },
+        Spin,
+    ));
+
+    #[cfg(feature = "scene")]
+    commands.spawn((
+        SceneBundle {
+            scene: asset_server.load("cube.obj"),
             ..default()
         },
         Spin,

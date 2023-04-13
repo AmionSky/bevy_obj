@@ -14,6 +14,10 @@ bevy_asset = "0.9"
 bevy_render = "0.9"
 bevy_utils = "0.9"
 bevy_math = "0.9"
+bevy_scene = { version = "0.9", optional = true}
+bevy_ecs = "0.9"
+bevy_pbr = { version = "0.9", optional = true}
+bevy_hierarchy = { version = "0.9", optional = true}
 
 anyhow = "1.0"
 thiserror = "1.0"
@@ -22,6 +26,9 @@ tobj = "3.2"
 
 [dev-dependencies]
 bevy = "0.9"
+
+[features]
+scene = ["dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_hierarchy"]
 
 [[example]]
 name = "render"
