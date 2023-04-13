@@ -86,15 +86,11 @@ async fn load_obj<'a, 'b>(
     #[cfg(feature = "scene")] supported_compressed_formats: CompressedImageFormats,
 ) -> Result<(), ObjError> {
     #[cfg(not(feature = "scene"))]
-    {
-        let mesh = load_obj_from_bytes(bytes)?;
-        load_context.set_default_asset(LoadedAsset::new(mesh));
-    }
+    let obj = load_obj_from_bytes(bytes)?;
     #[cfg(feature = "scene")]
-    {
-        let scene = load_obj_from_bytes(bytes, load_context, supported_compressed_formats).await?;
-        load_context.set_default_asset(LoadedAsset::new(scene));
-    }
+    let obj = load_obj_from_bytes(bytes, load_context, supported_compressed_formats).await?;
+
+    load_context.set_default_asset(LoadedAsset::new(obj));
     Ok(())
 }
 
@@ -115,8 +111,11 @@ async fn load_texture_image<'a, 'b>(
     );
     let bytes = load_context.asset_io().load_path(&path).await?;
     // TODO(luca) confirm value of is_srgb
-    let is_srgb = false;
-    Ok((Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)?, filename.to_string()))
+    let is_srgb = true;
+    Ok((
+        Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)?,
+        filename.to_string(),
+    ))
 }
 
 #[cfg(feature = "scene")]
@@ -125,7 +124,6 @@ async fn load_obj_from_bytes<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Scene, ObjError> {
-    println!("Loading scene");
     let options = tobj::GPU_LOAD_OPTIONS;
     let asset_io = &load_context.asset_io();
     let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
@@ -149,13 +147,23 @@ async fn load_obj_from_bytes<'a, 'b>(
             ..Default::default()
         };
         if !mat.diffuse_texture.is_empty() {
-            let (img, filename) = load_texture_image(&mat.diffuse_texture, load_context, supported_compressed_formats).await?;
+            let (img, filename) = load_texture_image(
+                &mat.diffuse_texture,
+                load_context,
+                supported_compressed_formats,
+            )
+            .await?;
             let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(&filename));
             material.base_color_texture = Some(load_context.get_handle(texture_asset_path));
             load_context.set_labeled_asset(&filename, LoadedAsset::new(img));
         }
         if !mat.normal_texture.is_empty() {
-            let (img, filename) = load_texture_image(&mat.normal_texture, load_context, supported_compressed_formats).await?;
+            let (img, filename) = load_texture_image(
+                &mat.normal_texture,
+                load_context,
+                supported_compressed_formats,
+            )
+            .await?;
             let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(&filename));
             material.normal_map_texture = Some(load_context.get_handle(texture_asset_path));
             load_context.set_labeled_asset(&filename, LoadedAsset::new(img));
