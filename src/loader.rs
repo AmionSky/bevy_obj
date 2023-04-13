@@ -100,7 +100,7 @@ async fn load_texture_image<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<(Image, String), ObjError> {
-    let path = Path::new(&image_path);
+    let path = load_context.path().parent().unwrap().join(image_path);
     let filename = path
         .to_str()
         .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?;
@@ -109,7 +109,7 @@ async fn load_texture_image<'a, 'b>(
             .and_then(|e| e.to_str())
             .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
     );
-    let bytes = load_context.asset_io().load_path(path).await?;
+    let bytes = load_context.asset_io().load_path(&path).await?;
     // TODO(luca) confirm value of is_srgb
     let is_srgb = true;
     Ok((
