@@ -100,7 +100,8 @@ async fn load_texture_image<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<(Image, String), ObjError> {
-    let path = load_context.path().parent().unwrap().join(image_path);
+    let mut path = load_context.path().to_owned();
+    path.set_file_name(image_path);
     let filename = path
         .to_str()
         .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?;
@@ -128,7 +129,8 @@ async fn load_obj_from_bytes<'a, 'b>(
     let asset_io = &load_context.asset_io();
     let ctx_path = load_context.path();
     let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
-        let asset_path = ctx_path.parent().unwrap().join(p);
+        let mut asset_path = ctx_path.to_owned();
+        asset_path.set_file_name(p);
         asset_io
             .load_path(&asset_path)
             .await
