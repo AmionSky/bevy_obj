@@ -74,8 +74,10 @@ pub enum ObjError {
     #[cfg(feature = "scene")]
     #[error("Invalid image file for texture: {0}")]
     InvalidImageFile(PathBuf),
+    #[cfg(feature = "scene")]
     #[error("Asset reading failed: {0}")]
     AssetIOError(#[from] bevy_asset::AssetIoError),
+    #[cfg(feature = "scene")]
     #[error("Texture conversion failed: {0}")]
     TextureError(#[from] bevy_render::texture::TextureError),
 }
