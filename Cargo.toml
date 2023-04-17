@@ -22,13 +22,13 @@ bevy_hierarchy = { version = "0.10", optional = true}
 anyhow = "1.0"
 thiserror = "1.0"
 
-tobj = { version = "3.2", features = ["async"] }
+tobj = { version = "3.2.2", features = ["log"] }
 
 [dev-dependencies]
 bevy = "0.10"
 
 [features]
-scene = ["dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_hierarchy"]
+scene = ["tobj/async", "dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_hierarchy"]
 
 [[example]]
 name = "render"
