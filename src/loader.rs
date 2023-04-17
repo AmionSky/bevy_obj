@@ -30,6 +30,18 @@ pub struct ObjLoader {
     supported_compressed_formats: CompressedImageFormats,
 }
 
+fn material_label(name: &str) -> String {
+    "Material".to_owned() + name
+}
+
+fn mesh_label(name: &str) -> String {
+    "Mesh".to_owned() + name
+}
+
+fn texture_label(name: &str) -> String {
+    "Texture".to_owned() + name
+}
+
 impl AssetLoader for ObjLoader {
     fn load<'a>(
         &'a self,
@@ -157,8 +169,8 @@ async fn load_obj_from_bytes<'a, 'b>(
                 supported_compressed_formats,
             )
             .await?;
-            let handle =
-                load_context.set_labeled_asset(&mat.diffuse_texture, LoadedAsset::new(img));
+            let handle = load_context
+                .set_labeled_asset(&texture_label(&mat.diffuse_texture), LoadedAsset::new(img));
             material.base_color_texture = Some(handle);
         }
         if !mat.normal_texture.is_empty() {
@@ -168,11 +180,12 @@ async fn load_obj_from_bytes<'a, 'b>(
                 supported_compressed_formats,
             )
             .await?;
-            let handle = load_context.set_labeled_asset(&mat.normal_texture, LoadedAsset::new(img));
+            let handle = load_context
+                .set_labeled_asset(&texture_label(&mat.normal_texture), LoadedAsset::new(img));
             material.normal_map_texture = Some(handle);
         }
 
-        load_context.set_labeled_asset(&mat.name, LoadedAsset::new(material));
+        load_context.set_labeled_asset(&material_label(&mat.name), LoadedAsset::new(material));
     }
     for model in models {
         let vertex_position: Vec<[f32; 3]> = model
@@ -209,7 +222,8 @@ async fn load_obj_from_bytes<'a, 'b>(
             mesh.compute_flat_normals();
         }
 
-        let mesh_handle = load_context.set_labeled_asset(&model.name, LoadedAsset::new(mesh));
+        let mesh_handle =
+            load_context.set_labeled_asset(&mesh_label(&model.name), LoadedAsset::new(mesh));
 
         // Now create the material
         let pbr_id = if let Some(mat_name) = model
@@ -218,7 +232,9 @@ async fn load_obj_from_bytes<'a, 'b>(
             .and_then(|id| materials.get(id))
             .map(|mat| mat.name.clone())
         {
-            let material_asset_path = AssetPath::new_ref(load_context.path(), Some(&mat_name));
+            let material_label = material_label(&mat_name);
+            let material_asset_path =
+                AssetPath::new_ref(load_context.path(), Some(&material_label));
             world
                 .spawn(PbrBundle {
                     mesh: mesh_handle,
