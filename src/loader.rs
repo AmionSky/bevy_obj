@@ -18,7 +18,7 @@ use {
         texture::{CompressedImageFormats, Image, ImageType},
     },
     bevy_scene::Scene,
-    std::path::{Path, PathBuf},
+    std::path::PathBuf,
 };
 
 #[cfg(not(feature = "scene"))]
@@ -99,12 +99,9 @@ async fn load_texture_image<'a, 'b>(
     image_path: &'a str,
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
-) -> Result<(Image, String), ObjError> {
+) -> Result<Image, ObjError> {
     let mut path = load_context.path().to_owned();
     path.set_file_name(image_path);
-    let filename = path
-        .to_str()
-        .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?;
     let extension = ImageType::Extension(
         path.extension()
             .and_then(|e| e.to_str())
@@ -113,10 +110,12 @@ async fn load_texture_image<'a, 'b>(
     let bytes = load_context.asset_io().load_path(&path).await?;
     // TODO(luca) confirm value of is_srgb
     let is_srgb = true;
-    Ok((
-        Image::from_buffer(&bytes, extension, supported_compressed_formats, is_srgb)?,
-        filename.to_string(),
-    ))
+    Ok(Image::from_buffer(
+        &bytes,
+        extension,
+        supported_compressed_formats,
+        is_srgb,
+    )?)
 }
 
 #[cfg(feature = "scene")]
@@ -150,26 +149,25 @@ async fn load_obj_from_bytes<'a, 'b>(
             ..Default::default()
         };
         if !mat.diffuse_texture.is_empty() {
-            let (img, filename) = load_texture_image(
+            let img = load_texture_image(
                 &mat.diffuse_texture,
                 load_context,
                 supported_compressed_formats,
             )
             .await?;
-            let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(&filename));
-            material.base_color_texture = Some(load_context.get_handle(texture_asset_path));
-            load_context.set_labeled_asset(&filename, LoadedAsset::new(img));
+            let handle =
+                load_context.set_labeled_asset(&mat.diffuse_texture, LoadedAsset::new(img));
+            material.base_color_texture = Some(handle);
         }
         if !mat.normal_texture.is_empty() {
-            let (img, filename) = load_texture_image(
+            let img = load_texture_image(
                 &mat.normal_texture,
                 load_context,
                 supported_compressed_formats,
             )
             .await?;
-            let texture_asset_path = AssetPath::new_ref(load_context.path(), Some(&filename));
-            material.normal_map_texture = Some(load_context.get_handle(texture_asset_path));
-            load_context.set_labeled_asset(&filename, LoadedAsset::new(img));
+            let handle = load_context.set_labeled_asset(&mat.normal_texture, LoadedAsset::new(img));
+            material.normal_map_texture = Some(handle);
         }
 
         load_context.set_labeled_asset(&mat.name, LoadedAsset::new(material));
@@ -209,10 +207,9 @@ async fn load_obj_from_bytes<'a, 'b>(
             mesh.compute_flat_normals();
         }
 
-        load_context.set_labeled_asset(&model.name, LoadedAsset::new(mesh));
+        let mesh_handle = load_context.set_labeled_asset(&model.name, LoadedAsset::new(mesh));
 
         // Now create the material
-        let mesh_asset_path = AssetPath::new_ref(load_context.path(), Some(&model.name));
         let pbr_id = if let Some(mat_name) = model
             .mesh
             .material_id
@@ -222,7 +219,7 @@ async fn load_obj_from_bytes<'a, 'b>(
             let material_asset_path = AssetPath::new_ref(load_context.path(), Some(&mat_name));
             world
                 .spawn(PbrBundle {
-                    mesh: load_context.get_handle(mesh_asset_path),
+                    mesh: mesh_handle,
                     material: load_context.get_handle(material_asset_path),
                     ..Default::default()
                 })
@@ -230,7 +227,7 @@ async fn load_obj_from_bytes<'a, 'b>(
         } else {
             world
                 .spawn(PbrBundle {
-                    mesh: load_context.get_handle(mesh_asset_path),
+                    mesh: mesh_handle,
                     ..Default::default()
                 })
                 .id()

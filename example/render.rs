@@ -13,8 +13,7 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    #[cfg(not(feature = "scene"))]
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    #[cfg(not(feature = "scene"))] mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Spawn a spinning cube
     #[cfg(not(feature = "scene"))]
