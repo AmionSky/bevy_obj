@@ -1,23 +1,18 @@
 use anyhow::Result;
-use bevy_asset::{LoadContext, LoadedAsset};
+use bevy_asset::{AssetPath, Handle, LoadContext, LoadedAsset};
+use bevy_ecs::world::{FromWorld, World};
+use bevy_hierarchy::BuildWorldChildren;
+use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
     mesh::{Indices, Mesh},
+    prelude::{Color, SpatialBundle},
     render_resource::PrimitiveTopology,
+    renderer::RenderDevice,
+    texture::{CompressedImageFormats, Image, ImageType},
 };
+use bevy_scene::Scene;
+use std::path::PathBuf;
 use thiserror::Error;
-use {
-    bevy_asset::AssetPath,
-    bevy_ecs::world::{FromWorld, World},
-    bevy_hierarchy::BuildWorldChildren,
-    bevy_pbr::{PbrBundle, StandardMaterial},
-    bevy_render::{
-        prelude::{Color, SpatialBundle},
-        renderer::RenderDevice,
-        texture::{CompressedImageFormats, Image, ImageType},
-    },
-    bevy_scene::Scene,
-    std::path::PathBuf,
-};
 
 fn material_label(idx: usize) -> String {
     "Material".to_owned() + &idx.to_string()
@@ -35,7 +30,6 @@ impl FromWorld for super::ObjLoader {
     fn from_world(world: &mut World) -> Self {
         let supported_compressed_formats = match world.get_resource::<RenderDevice>() {
             Some(render_device) => CompressedImageFormats::from_features(render_device.features()),
-
             None => CompressedImageFormats::all(),
         };
         Self {
@@ -61,7 +55,7 @@ pub(super) async fn load_obj<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<(), ObjError> {
-    let obj = load_obj_from_bytes(bytes, load_context, supported_compressed_formats).await?;
+    let obj = load_obj_scene(bytes, load_context, supported_compressed_formats).await?;
     load_context.set_default_asset(LoadedAsset::new(obj));
     Ok(())
 }
@@ -89,15 +83,14 @@ async fn load_texture_image<'a, 'b>(
     )?)
 }
 
-async fn load_obj_from_bytes<'a, 'b>(
+async fn load_obj_data<'a, 'b>(
     mut bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
-) -> Result<Scene, ObjError> {
+) -> tobj::LoadResult {
     let options = tobj::GPU_LOAD_OPTIONS;
     let asset_io = &load_context.asset_io();
     let ctx_path = load_context.path();
-    let obj = tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
+    tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
         let mut asset_path = ctx_path.to_owned();
         asset_path.set_file_name(p);
         asset_io
@@ -107,45 +100,59 @@ async fn load_obj_from_bytes<'a, 'b>(
                 tobj::load_mtl_buf(&mut bytes.as_slice())
             })
     })
-    .await?;
-    let models = obj.0;
-    let materials = obj.1?;
-    let mut world = World::default();
-    let world_id = world.spawn(SpatialBundle::INHERITED_IDENTITY).id();
+    .await
+}
+
+async fn load_mat_texture<'a, 'b>(
+    material: &String,
+    index: &mut usize,
+    load_context: &'a mut LoadContext<'b>,
+    supported_compressed_formats: CompressedImageFormats,
+) -> Result<Option<Handle<Image>>, ObjError> {
+    if !material.is_empty() {
+        let img = load_texture_image(material, load_context, supported_compressed_formats).await?;
+        let handle = load_context.set_labeled_asset(&texture_label(*index), LoadedAsset::new(img));
+        *index += 1;
+        Ok(Some(handle))
+    } else {
+        Ok(None)
+    }
+}
+
+async fn load_obj_scene<'a, 'b>(
+    bytes: &'a [u8],
+    load_context: &'a mut LoadContext<'b>,
+    supported_compressed_formats: CompressedImageFormats,
+) -> Result<Scene, ObjError> {
+    let (models, materials) = load_obj_data(bytes, load_context).await?;
+    let materials = materials?;
+
     let mut texture_idx = 0;
     for (mat_idx, mat) in materials.into_iter().enumerate() {
         // TODO(luca) check other material properties
-        let mut material = StandardMaterial {
+        let material = StandardMaterial {
             base_color: Color::rgb(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]),
+            base_color_texture: load_mat_texture(
+                &mat.diffuse_texture,
+                &mut texture_idx,
+                load_context,
+                supported_compressed_formats,
+            )
+            .await?,
+            normal_map_texture: load_mat_texture(
+                &mat.normal_texture,
+                &mut texture_idx,
+                load_context,
+                supported_compressed_formats,
+            )
+            .await?,
             ..Default::default()
         };
-        if !mat.diffuse_texture.is_empty() {
-            let img = load_texture_image(
-                &mat.diffuse_texture,
-                load_context,
-                supported_compressed_formats,
-            )
-            .await?;
-            let handle =
-                load_context.set_labeled_asset(&texture_label(texture_idx), LoadedAsset::new(img));
-            texture_idx += 1;
-            material.base_color_texture = Some(handle);
-        }
-        if !mat.normal_texture.is_empty() {
-            let img = load_texture_image(
-                &mat.normal_texture,
-                load_context,
-                supported_compressed_formats,
-            )
-            .await?;
-            let handle =
-                load_context.set_labeled_asset(&texture_label(texture_idx), LoadedAsset::new(img));
-            texture_idx += 1;
-            material.normal_map_texture = Some(handle);
-        }
-
         load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material));
     }
+
+    let mut world = World::default();
+    let world_id = world.spawn(SpatialBundle::INHERITED_IDENTITY).id();
     for (model_idx, model) in models.into_iter().enumerate() {
         let vertex_position: Vec<[f32; 3]> = model
             .mesh
@@ -184,7 +191,7 @@ async fn load_obj_from_bytes<'a, 'b>(
         let mesh_handle =
             load_context.set_labeled_asset(&mesh_label(model_idx), LoadedAsset::new(mesh));
 
-        // Now create the material
+        // Now assign the material
         let pbr_id = if let Some(mat_id) = model.mesh.material_id {
             let material_label = material_label(mat_id);
             let material_asset_path =
