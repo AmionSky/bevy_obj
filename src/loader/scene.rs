@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bevy_asset::{AssetPath, Handle, LoadContext, LoadedAsset};
+use bevy_asset::{Handle, LoadContext, LoadedAsset};
 use bevy_ecs::world::{FromWorld, World};
 use bevy_hierarchy::BuildWorldChildren;
 use bevy_pbr::{PbrBundle, StandardMaterial};
@@ -128,6 +128,7 @@ async fn load_obj_scene<'a, 'b>(
     let materials = materials?;
 
     let mut texture_idx = 0;
+    let mut mat_handles = Vec::with_capacity(materials.len());
     for (mat_idx, mat) in materials.into_iter().enumerate() {
         // TODO(luca) check other material properties
         let material = StandardMaterial {
@@ -148,7 +149,7 @@ async fn load_obj_scene<'a, 'b>(
             .await?,
             ..Default::default()
         };
-        load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material));
+        mat_handles.push(load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material)));
     }
 
     let mut world = World::default();
@@ -193,13 +194,10 @@ async fn load_obj_scene<'a, 'b>(
 
         // Now assign the material
         let pbr_id = if let Some(mat_id) = model.mesh.material_id {
-            let material_label = material_label(mat_id);
-            let material_asset_path =
-                AssetPath::new_ref(load_context.path(), Some(&material_label));
             world
                 .spawn(PbrBundle {
                     mesh: mesh_handle,
-                    material: load_context.get_handle(material_asset_path),
+                    material: mat_handles[mat_id].clone(),
                     ..Default::default()
                 })
                 .id()
