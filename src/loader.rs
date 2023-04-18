@@ -30,16 +30,16 @@ pub struct ObjLoader {
     supported_compressed_formats: CompressedImageFormats,
 }
 
-fn material_label(name: &str) -> String {
-    "Material".to_owned() + name
+fn material_label(idx: usize) -> String {
+    "Material".to_owned() + &idx.to_string()
 }
 
-fn mesh_label(name: &str) -> String {
-    "Mesh".to_owned() + name
+fn mesh_label(idx: usize) -> String {
+    "Mesh".to_owned() + &idx.to_string()
 }
 
-fn texture_label(name: &str) -> String {
-    "Texture".to_owned() + name
+fn texture_label(idx: usize) -> String {
+    "Texture".to_owned() + &idx.to_string()
 }
 
 impl AssetLoader for ObjLoader {
@@ -156,7 +156,8 @@ async fn load_obj_from_bytes<'a, 'b>(
     let materials = obj.1?;
     let mut world = World::default();
     let world_id = world.spawn(SpatialBundle::INHERITED_IDENTITY).id();
-    for mat in &materials {
+    let mut texture_idx = 0;
+    for (mat_idx, mat) in materials.into_iter().enumerate() {
         // TODO(luca) check other material properties
         let mut material = StandardMaterial {
             base_color: Color::rgb(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]),
@@ -169,8 +170,9 @@ async fn load_obj_from_bytes<'a, 'b>(
                 supported_compressed_formats,
             )
             .await?;
-            let handle = load_context
-                .set_labeled_asset(&texture_label(&mat.diffuse_texture), LoadedAsset::new(img));
+            let handle =
+                load_context.set_labeled_asset(&texture_label(texture_idx), LoadedAsset::new(img));
+            texture_idx += 1;
             material.base_color_texture = Some(handle);
         }
         if !mat.normal_texture.is_empty() {
@@ -180,14 +182,15 @@ async fn load_obj_from_bytes<'a, 'b>(
                 supported_compressed_formats,
             )
             .await?;
-            let handle = load_context
-                .set_labeled_asset(&texture_label(&mat.normal_texture), LoadedAsset::new(img));
+            let handle =
+                load_context.set_labeled_asset(&texture_label(texture_idx), LoadedAsset::new(img));
+            texture_idx += 1;
             material.normal_map_texture = Some(handle);
         }
 
-        load_context.set_labeled_asset(&material_label(&mat.name), LoadedAsset::new(material));
+        load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material));
     }
-    for model in models {
+    for (model_idx, model) in models.into_iter().enumerate() {
         let vertex_position: Vec<[f32; 3]> = model
             .mesh
             .positions
@@ -223,16 +226,11 @@ async fn load_obj_from_bytes<'a, 'b>(
         }
 
         let mesh_handle =
-            load_context.set_labeled_asset(&mesh_label(&model.name), LoadedAsset::new(mesh));
+            load_context.set_labeled_asset(&mesh_label(model_idx), LoadedAsset::new(mesh));
 
         // Now create the material
-        let pbr_id = if let Some(mat_name) = model
-            .mesh
-            .material_id
-            .and_then(|id| materials.get(id))
-            .map(|mat| mat.name.clone())
-        {
-            let material_label = material_label(&mat_name);
+        let pbr_id = if let Some(mat_id) = model.mesh.material_id {
+            let material_label = material_label(mat_id);
             let material_asset_path =
                 AssetPath::new_ref(load_context.path(), Some(&material_label));
             world
