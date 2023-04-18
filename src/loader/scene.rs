@@ -1,10 +1,9 @@
 use anyhow::Result;
-use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
+use bevy_asset::{LoadContext, LoadedAsset};
 use bevy_render::{
     mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
-use bevy_utils::BoxedFuture;
 use thiserror::Error;
 use {
     bevy_asset::AssetPath,
@@ -20,10 +19,6 @@ use {
     std::path::PathBuf,
 };
 
-pub struct ObjLoader {
-    supported_compressed_formats: CompressedImageFormats,
-}
-
 fn material_label(idx: usize) -> String {
     "Material".to_owned() + &idx.to_string()
 }
@@ -36,24 +31,7 @@ fn texture_label(idx: usize) -> String {
     "Texture".to_owned() + &idx.to_string()
 }
 
-impl AssetLoader for ObjLoader {
-    fn load<'a>(
-        &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
-        Box::pin(async move {
-            Ok(load_obj(bytes, load_context, self.supported_compressed_formats).await?)
-        })
-    }
-
-    fn extensions(&self) -> &[&str] {
-        static EXTENSIONS: &[&str] = &["obj"];
-        EXTENSIONS
-    }
-}
-
-impl FromWorld for ObjLoader {
+impl FromWorld for super::ObjLoader {
     fn from_world(world: &mut World) -> Self {
         let supported_compressed_formats = match world.get_resource::<RenderDevice>() {
             Some(render_device) => CompressedImageFormats::from_features(render_device.features()),
@@ -78,7 +56,7 @@ pub enum ObjError {
     TextureError(#[from] bevy_render::texture::TextureError),
 }
 
-async fn load_obj<'a, 'b>(
+pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,

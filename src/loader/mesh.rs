@@ -1,27 +1,15 @@
 use anyhow::Result;
-use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
+use bevy_asset::{LoadContext, LoadedAsset};
 use bevy_render::{
     mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
-use bevy_utils::BoxedFuture;
 use thiserror::Error;
 
-#[derive(Default)]
-pub struct ObjLoader;
-
-impl AssetLoader for ObjLoader {
-    fn load<'a>(
-        &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
-        Box::pin(async move { Ok(load_obj(bytes, load_context).await?) })
-    }
-
-    fn extensions(&self) -> &[&str] {
-        static EXTENSIONS: &[&str] = &["obj"];
-        EXTENSIONS
+#[allow(clippy::derivable_impls)]
+impl Default for super::ObjLoader {
+    fn default() -> Self {
+        Self {}
     }
 }
 
@@ -31,7 +19,7 @@ pub enum ObjError {
     TobjError(#[from] tobj::LoadError),
 }
 
-async fn load_obj<'a, 'b>(
+pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> Result<(), ObjError> {
