@@ -16,23 +16,24 @@ impl Default for super::ObjLoader {
 #[derive(Error, Debug)]
 pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
-    TobjError(#[from] tobj::LoadError),
+    InvalidFile(#[from] tobj::LoadError),
 }
 
 pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> Result<(), ObjError> {
-    let obj = load_obj_from_bytes(bytes)?;
-    load_context.set_default_asset(LoadedAsset::new(obj));
+    let mesh = load_obj_from_bytes(bytes)?;
+    load_context.set_default_asset(LoadedAsset::new(mesh));
     Ok(())
 }
 
 pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
-    let obj = tobj::load_obj_buf(&mut bytes, &options, |_m| {
-        Err(tobj::LoadError::OpenFileFailed)
+    let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
+        Err(tobj::LoadError::GenericFailure)
     })?;
+
     let mut indices = Vec::new();
     let mut vertex_position = Vec::new();
     let mut vertex_normal = Vec::new();
