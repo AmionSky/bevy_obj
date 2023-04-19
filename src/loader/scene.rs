@@ -63,8 +63,7 @@ async fn load_texture_image<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Image, ObjError> {
-    let mut path = load_context.path().to_owned();
-    path.set_file_name(image_path);
+    let path = load_context.path().with_file_name(image_path);
     let extension = ImageType::Extension(
         path.extension()
             .and_then(|e| e.to_str())
@@ -86,7 +85,7 @@ async fn load_obj_data<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
 ) -> tobj::LoadResult {
     let options = tobj::GPU_LOAD_OPTIONS;
-    let asset_io = &load_context.asset_io();
+    let asset_io = load_context.asset_io();
     let ctx_path = load_context.path();
     tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
         let mut asset_path = ctx_path.to_owned();
@@ -150,7 +149,9 @@ async fn load_obj_scene<'a, 'b>(
             .await?,
             ..Default::default()
         };
-        mat_handles.push(load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material)));
+        mat_handles.push(
+            load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material)),
+        );
     }
 
     let mut world = World::default();
