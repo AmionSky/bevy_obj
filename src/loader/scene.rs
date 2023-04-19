@@ -38,6 +38,8 @@ impl FromWorld for super::ObjLoader {
 pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
+    #[error("Failed to load materials for {0}: {1}")]
+    MaterialError(PathBuf, #[source] tobj::LoadError),
     #[error("Invalid image file for texture: {0}")]
     InvalidImageFile(PathBuf),
     #[error("Asset reading failed: {0}")]
@@ -124,7 +126,10 @@ async fn load_obj_scene<'a, 'b>(
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, load_context).await?;
-    let materials = materials?;
+    let materials = materials.map_err(|err| {
+        let obj_path = load_context.path().to_path_buf();
+        ObjError::MaterialError(obj_path, err)
+    })?;
 
     let mut mat_handles = Vec::with_capacity(materials.len());
     for (mat_idx, mat) in materials.into_iter().enumerate() {
