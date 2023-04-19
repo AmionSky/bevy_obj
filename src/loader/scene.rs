@@ -22,10 +22,6 @@ fn mesh_label(idx: usize) -> String {
     "Mesh".to_owned() + &idx.to_string()
 }
 
-fn texture_label(idx: usize) -> String {
-    "Texture".to_owned() + &idx.to_string()
-}
-
 impl FromWorld for super::ObjLoader {
     fn from_world(world: &mut World) -> Self {
         let supported_compressed_formats = match world.get_resource::<RenderDevice>() {
@@ -104,15 +100,18 @@ async fn load_obj_data<'a, 'b>(
 }
 
 async fn load_mat_texture<'a, 'b>(
-    material: &String,
-    index: &mut usize,
+    texture: &String,
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Option<Handle<Image>>, ObjError> {
-    if !material.is_empty() {
-        let img = load_texture_image(material, load_context, supported_compressed_formats).await?;
-        let handle = load_context.set_labeled_asset(&texture_label(*index), LoadedAsset::new(img));
-        *index += 1;
+    if !texture.is_empty() {
+        let handle = if load_context.has_labeled_asset(texture) {
+            load_context.get_handle(texture)
+        } else {
+            let img =
+                load_texture_image(texture, load_context, supported_compressed_formats).await?;
+            load_context.set_labeled_asset(texture, LoadedAsset::new(img))
+        };
         Ok(Some(handle))
     } else {
         Ok(None)
@@ -127,7 +126,6 @@ async fn load_obj_scene<'a, 'b>(
     let (models, materials) = load_obj_data(bytes, load_context).await?;
     let materials = materials?;
 
-    let mut texture_idx = 0;
     let mut mat_handles = Vec::with_capacity(materials.len());
     for (mat_idx, mat) in materials.into_iter().enumerate() {
         // TODO(luca) check other material properties
@@ -135,14 +133,12 @@ async fn load_obj_scene<'a, 'b>(
             base_color: Color::rgb(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]),
             base_color_texture: load_mat_texture(
                 &mat.diffuse_texture,
-                &mut texture_idx,
                 load_context,
                 supported_compressed_formats,
             )
             .await?,
             normal_map_texture: load_mat_texture(
                 &mat.normal_texture,
-                &mut texture_idx,
                 load_context,
                 supported_compressed_formats,
             )
