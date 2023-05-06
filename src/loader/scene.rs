@@ -88,8 +88,7 @@ async fn load_obj_data<'a, 'b>(
     let asset_io = load_context.asset_io();
     let ctx_path = load_context.path();
     tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
-        let mut asset_path = ctx_path.to_owned();
-        asset_path.set_file_name(p);
+        let asset_path = ctx_path.with_file_name(p);
         asset_io
             .load_path(&asset_path)
             .await
