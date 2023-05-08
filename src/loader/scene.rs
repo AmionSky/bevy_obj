@@ -70,7 +70,6 @@ async fn load_texture_image<'a, 'b>(
             .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
     );
     let bytes = load_context.asset_io().load_path(&path).await?;
-    // TODO(luca) confirm value of is_srgb
     let is_srgb = true;
     Ok(Image::from_buffer(
         &bytes,
@@ -100,11 +99,11 @@ async fn load_obj_data<'a, 'b>(
 }
 
 async fn load_mat_texture<'a, 'b>(
-    texture: &String,
+    texture: &Option<String>,
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Option<Handle<Image>>, ObjError> {
-    if !texture.is_empty() {
+    if let Some(texture) = texture {
         let handle = if load_context.has_labeled_asset(texture) {
             load_context.get_handle(texture)
         } else {
@@ -131,9 +130,7 @@ async fn load_obj_scene<'a, 'b>(
 
     let mut mat_handles = Vec::with_capacity(materials.len());
     for (mat_idx, mat) in materials.into_iter().enumerate() {
-        // TODO(luca) check other material properties
-        let material = StandardMaterial {
-            base_color: Color::rgb(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]),
+        let mut material = StandardMaterial {
             base_color_texture: load_mat_texture(
                 &mat.diffuse_texture,
                 load_context,
@@ -148,6 +145,9 @@ async fn load_obj_scene<'a, 'b>(
             .await?,
             ..Default::default()
         };
+        if let Some(color) = mat.diffuse {
+            material.base_color = Color::rgb(color[0], color[1], color[2]);
+        }
         mat_handles.push(
             load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material)),
         );
