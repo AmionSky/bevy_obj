@@ -1,11 +1,10 @@
 use anyhow::Result;
 use bevy_asset::{Handle, LoadContext, LoadedAsset};
 use bevy_ecs::world::{FromWorld, World};
-use bevy_hierarchy::BuildWorldChildren;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
     mesh::{Indices, Mesh},
-    prelude::{Color, SpatialBundle},
+    prelude::Color,
     render_resource::PrimitiveTopology,
     renderer::RenderDevice,
     texture::{CompressedImageFormats, Image, ImageType},
@@ -154,7 +153,6 @@ async fn load_obj_scene<'a, 'b>(
     }
 
     let mut world = World::default();
-    let world_id = world.spawn(SpatialBundle::INHERITED_IDENTITY).id();
     for (model_idx, model) in models.into_iter().enumerate() {
         let vertex_position: Vec<[f32; 3]> = model
             .mesh
@@ -193,24 +191,15 @@ async fn load_obj_scene<'a, 'b>(
         let mesh_handle =
             load_context.set_labeled_asset(&mesh_label(model_idx), LoadedAsset::new(mesh));
 
-        // Now assign the material
-        let pbr_id = if let Some(mat_id) = model.mesh.material_id {
-            world
-                .spawn(PbrBundle {
-                    mesh: mesh_handle,
-                    material: mat_handles[mat_id].clone(),
-                    ..Default::default()
-                })
-                .id()
-        } else {
-            world
-                .spawn(PbrBundle {
-                    mesh: mesh_handle,
-                    ..Default::default()
-                })
-                .id()
+        let mut pbr_bundle = PbrBundle {
+            mesh: mesh_handle,
+            ..Default::default()
         };
-        world.entity_mut(world_id).push_children(&[pbr_id]);
+        // Now assign the material, if present
+        if let Some(mat_id) = model.mesh.material_id {
+            pbr_bundle.material = mat_handles[mat_id].clone();
+        }
+        world.spawn(pbr_bundle);
     }
 
     Ok(Scene::new(world))

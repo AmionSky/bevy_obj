@@ -17,7 +17,6 @@ bevy_utils = "0.10"
 bevy_ecs = "0.10"
 bevy_scene = { version = "0.10", optional = true}
 bevy_pbr = { version = "0.10", optional = true}
-bevy_hierarchy = { version = "0.10", optional = true}
 
 anyhow = "1.0"
 thiserror = "1.0"
@@ -28,7 +27,7 @@ tobj = "4.0.0"
 bevy = "0.10"
 
 [features]
-scene = ["tobj/async", "tobj/log", "dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_hierarchy"]
+scene = ["tobj/async", "tobj/log", "dep:bevy_scene", "dep:bevy_pbr"]
 
 [[example]]
 name = "render"
