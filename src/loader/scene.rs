@@ -10,6 +10,7 @@ use bevy_render::{
     texture::{CompressedImageFormats, Image, ImageType},
 };
 use bevy_scene::Scene;
+use bevy_utils::HashMap;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -99,16 +100,19 @@ async fn load_obj_data<'a, 'b>(
 
 async fn load_mat_texture<'a, 'b>(
     texture: &Option<String>,
+    texture_handles: &mut HashMap<String, Handle<Image>>,
     load_context: &'a mut LoadContext<'b>,
     supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Option<Handle<Image>>, ObjError> {
     if let Some(texture) = texture {
-        let handle = if load_context.has_labeled_asset(texture) {
-            load_context.get_handle(texture)
+        let handle = if let Some(handle) = texture_handles.get(texture) {
+            handle.clone()
         } else {
             let img =
                 load_texture_image(texture, load_context, supported_compressed_formats).await?;
-            load_context.set_labeled_asset(texture, LoadedAsset::new(img))
+            let handle = load_context.set_labeled_asset(texture, LoadedAsset::new(img));
+            texture_handles.insert(texture.clone(), handle.clone());
+            handle
         };
         Ok(Some(handle))
     } else {
@@ -128,16 +132,19 @@ async fn load_obj_scene<'a, 'b>(
     })?;
 
     let mut mat_handles = Vec::with_capacity(materials.len());
+    let mut texture_handles = HashMap::new();
     for (mat_idx, mat) in materials.into_iter().enumerate() {
         let mut material = StandardMaterial {
             base_color_texture: load_mat_texture(
                 &mat.diffuse_texture,
+                &mut texture_handles,
                 load_context,
                 supported_compressed_formats,
             )
             .await?,
             normal_map_texture: load_mat_texture(
                 &mat.normal_texture,
+                &mut texture_handles,
                 load_context,
                 supported_compressed_formats,
             )
