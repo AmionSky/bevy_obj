@@ -1,27 +1,15 @@
 use anyhow::Result;
-use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
+use bevy_asset::{LoadContext, LoadedAsset};
 use bevy_render::{
     mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
-use bevy_utils::BoxedFuture;
 use thiserror::Error;
 
-#[derive(Default)]
-pub struct ObjLoader;
-
-impl AssetLoader for ObjLoader {
-    fn load<'a>(
-        &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<()>> {
-        Box::pin(async move { Ok(load_obj(bytes, load_context).await?) })
-    }
-
-    fn extensions(&self) -> &[&str] {
-        static EXTENSIONS: &[&str] = &["obj"];
-        EXTENSIONS
+#[allow(clippy::derivable_impls)]
+impl Default for super::ObjLoader {
+    fn default() -> Self {
+        Self {}
     }
 }
 
@@ -31,7 +19,7 @@ pub enum ObjError {
     InvalidFile(#[from] tobj::LoadError),
 }
 
-async fn load_obj<'a, 'b>(
+pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> Result<(), ObjError> {
@@ -40,13 +28,12 @@ async fn load_obj<'a, 'b>(
     Ok(())
 }
 
-fn load_mtl(_path: &std::path::Path) -> tobj::MTLLoadResult {
-    Err(tobj::LoadError::OpenFileFailed)
-}
-
 pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
-    let obj = tobj::load_obj_buf(&mut bytes, &options, load_mtl)?;
+    let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
+        Err(tobj::LoadError::GenericFailure)
+    })?;
+
     let mut indices = Vec::new();
     let mut vertex_position = Vec::new();
     let mut vertex_normal = Vec::new();

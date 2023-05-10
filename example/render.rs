@@ -13,9 +13,10 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    #[cfg(not(feature = "scene"))] mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Spawn a spinning cube
+    #[cfg(not(feature = "scene"))]
     commands.spawn((
         PbrBundle {
             mesh: asset_server.load("cube.obj"),
@@ -23,6 +24,15 @@ fn setup(
                 base_color_texture: Some(asset_server.load("cube.png")),
                 ..default()
             }),
+            ..default()
+        },
+        Spin,
+    ));
+
+    #[cfg(feature = "scene")]
+    commands.spawn((
+        SceneBundle {
+            scene: asset_server.load("cube.obj"),
             ..default()
         },
         Spin,

@@ -14,14 +14,20 @@ bevy_app = "0.10"
 bevy_asset = "0.10"
 bevy_render = "0.10"
 bevy_utils = "0.10"
+bevy_ecs = "0.10"
+bevy_scene = { version = "0.10", optional = true}
+bevy_pbr = { version = "0.10", optional = true}
 
 anyhow = "1.0"
 thiserror = "1.0"
 
-tobj = "3.2"
+tobj = "4.0.0"
 
 [dev-dependencies]
 bevy = "0.10"
+
+[features]
+scene = ["tobj/async", "tobj/log", "dep:bevy_scene", "dep:bevy_pbr"]
 
 [[example]]
 name = "render"
