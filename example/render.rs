@@ -3,10 +3,9 @@ use bevy_obj::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(ObjPlugin)
-        .add_startup_system(setup)
-        .add_system(spin)
+        .add_plugins((DefaultPlugins, ObjPlugin))
+        .add_systems(Startup, setup)
+        .add_systems(Update, spin)
         .run();
 }
 
