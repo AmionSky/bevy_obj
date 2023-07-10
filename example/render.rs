@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_obj::*;
+use bevy_obj::ObjPlugin;
 
 fn main() {
     App::new()

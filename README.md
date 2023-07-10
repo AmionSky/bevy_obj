@@ -6,27 +6,43 @@ A Wavefront .obj mesh asset loader plugin for the [Bevy engine](https://github.c
 
 ## Usage:
 
+Add the crate as a dependency:
+
 *Major and Minor version number should match bevy version*
 
-Add the plugin
+```toml
+[dependencies]
+bevy = "0.11"
+bevy_obj = "0.11"
+```
+
+Add the plugin:
 
 ```rust
 use bevy::prelude::*;
-use bevy_obj::*;
+use bevy_obj::ObjPlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(ObjPlugin)
+        .add_plugins((DefaultPlugins, ObjPlugin))
         .run();
 }
 ```
 
-Load an obj file
+Load the `.obj` file as a single mesh:
 
 ```rust
 fn example_startup_system(asset_server: Res<AssetServer>) {
-    // Load OBJ file
     let mesh_handle = asset_server.load("example.obj");
 }
+```
+
+### Scene based loading
+
+If you prefer loading `.obj` files as a scene with *(limited)* MTL material support, add the `scene` feature
+
+```toml
+[dependencies]
+bevy = "0.11"
+bevy_obj = { version = "0.11", features = ["scene"] }
 ```
