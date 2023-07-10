@@ -4,18 +4,18 @@ use bevy_obj::*;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, ObjPlugin))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (load, setup))
         .add_systems(Update, spin)
         .run();
 }
 
-fn setup(
+#[cfg(not(feature = "scene"))]
+fn load(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    #[cfg(not(feature = "scene"))] mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Spawn a spinning cube
-    #[cfg(not(feature = "scene"))]
     commands.spawn((
         PbrBundle {
             mesh: asset_server.load("cube.obj"),
@@ -27,8 +27,11 @@ fn setup(
         },
         Spin,
     ));
+}
 
-    #[cfg(feature = "scene")]
+#[cfg(feature = "scene")]
+fn load(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // Spawn a spinning cube
     commands.spawn((
         SceneBundle {
             scene: asset_server.load("cube.obj"),
@@ -36,7 +39,9 @@ fn setup(
         },
         Spin,
     ));
+}
 
+fn setup(mut commands: Commands) {
     // Spawn a light and the camera
     commands.spawn(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(3.0, 4.0, 3.0)),
