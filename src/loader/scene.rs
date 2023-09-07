@@ -1,6 +1,8 @@
+use super::ObjLoader;
 use anyhow::Result;
+use bevy_app::App;
 use bevy_asset::{Handle, LoadContext, LoadedAsset};
-use bevy_ecs::world::{FromWorld, World};
+use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
     mesh::{Indices, Mesh},
@@ -22,15 +24,10 @@ fn mesh_label(idx: usize) -> String {
     "Mesh".to_owned() + &idx.to_string()
 }
 
-impl FromWorld for super::ObjLoader {
-    fn from_world(world: &mut World) -> Self {
-        let supported_compressed_formats = match world.get_resource::<RenderDevice>() {
-            Some(render_device) => CompressedImageFormats::from_features(render_device.features()),
-            None => CompressedImageFormats::all(),
-        };
-        Self {
-            supported_compressed_formats,
-        }
+pub(crate) fn scf(app: &App) -> CompressedImageFormats {
+    match app.world.get_resource::<RenderDevice>() {
+        Some(render_device) => CompressedImageFormats::from_features(render_device.features()),
+        None => CompressedImageFormats::NONE,
     }
 }
 
@@ -43,21 +40,19 @@ pub enum ObjError {
     #[error("Invalid image file for texture: {0}")]
     InvalidImageFile(PathBuf),
     #[error("Asset reading failed: {0}")]
-    AssetIOError(#[from] bevy_asset::AssetIoError),
+    AssetLoadError(#[from] bevy_asset::AssetLoadError),
     #[error("Texture conversion failed: {0}")]
     TextureError(#[from] bevy_render::texture::TextureError),
 }
 
 pub(super) async fn load_obj<'a, 'b>(
+    loader: &ObjLoader,
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
-) -> Result<(), ObjError> {
-    let obj = load_obj_scene(bytes, load_context, supported_compressed_formats).await?;
-    load_context.set_default_asset(LoadedAsset::new(obj));
-    Ok(())
+) -> Result<Scene, ObjError> {
+    load_obj_scene(bytes, load_context, loader.supported_compressed_formats).await
 }
-
+/*
 async fn load_texture_image<'a, 'b>(
     image_path: &'a str,
     load_context: &'a mut LoadContext<'b>,
@@ -78,19 +73,17 @@ async fn load_texture_image<'a, 'b>(
         is_srgb,
     )?)
 }
+*/
 
 async fn load_obj_data<'a, 'b>(
     mut bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> tobj::LoadResult {
     let options = tobj::GPU_LOAD_OPTIONS;
-    let asset_io = load_context.asset_io();
     let ctx_path = load_context.path();
-    tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
+    tobj::load_obj_buf_async(&mut bytes, &options,  |p| async move {
         let asset_path = ctx_path.with_file_name(p);
-        asset_io
-            .load_path(&asset_path)
-            .await
+        std::fs::read(asset_path) // TODO Broken
             .map_or(Err(tobj::LoadError::OpenFileFailed), |bytes| {
                 tobj::load_mtl_buf(&mut bytes.as_slice())
             })
@@ -108,9 +101,12 @@ async fn load_mat_texture<'a, 'b>(
         let handle = if let Some(handle) = texture_handles.get(texture) {
             handle.clone()
         } else {
+            /*
             let img =
                 load_texture_image(texture, load_context, supported_compressed_formats).await?;
             let handle = load_context.set_labeled_asset(texture, LoadedAsset::new(img));
+            */
+            let handle = load_context.load(load_context.path().with_file_name(texture));
             texture_handles.insert(texture.clone(), handle.clone());
             handle
         };
@@ -154,9 +150,7 @@ async fn load_obj_scene<'a, 'b>(
         if let Some(color) = mat.diffuse {
             material.base_color = Color::rgb(color[0], color[1], color[2]);
         }
-        mat_handles.push(
-            load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material)),
-        );
+        mat_handles.push(load_context.add_labeled_asset(material_label(mat_idx), material));
     }
 
     let mut world = World::default();
@@ -195,8 +189,7 @@ async fn load_obj_scene<'a, 'b>(
             mesh.compute_flat_normals();
         }
 
-        let mesh_handle =
-            load_context.set_labeled_asset(&mesh_label(model_idx), LoadedAsset::new(mesh));
+        let mesh_handle = load_context.add_labeled_asset(mesh_label(model_idx), mesh);
 
         let mut pbr_bundle = PbrBundle {
             mesh: mesh_handle,

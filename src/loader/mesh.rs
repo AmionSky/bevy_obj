@@ -1,13 +1,14 @@
+use super::ObjLoader;
 use anyhow::Result;
-use bevy_asset::{LoadContext, LoadedAsset};
+use bevy_asset::LoadContext;
 use bevy_render::{
     mesh::{Indices, Mesh},
     render_resource::PrimitiveTopology,
 };
 use thiserror::Error;
 
-#[allow(clippy::derivable_impls)]
-impl Default for super::ObjLoader {
+#[allow(clippy::derivable_impls)] // TODO remove?
+impl Default for ObjLoader {
     fn default() -> Self {
         Self {}
     }
@@ -20,12 +21,11 @@ pub enum ObjError {
 }
 
 pub(super) async fn load_obj<'a, 'b>(
+    _loader: &ObjLoader,
     bytes: &'a [u8],
-    load_context: &'a mut LoadContext<'b>,
-) -> Result<(), ObjError> {
-    let mesh = load_obj_from_bytes(bytes)?;
-    load_context.set_default_asset(LoadedAsset::new(mesh));
-    Ok(())
+    _load_context: &'a mut LoadContext<'b>,
+) -> Result<Mesh, ObjError> {
+    load_obj_from_bytes(bytes)
 }
 
 pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
