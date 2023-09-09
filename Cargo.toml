@@ -14,9 +14,9 @@ bevy_app = { git = "https://github.com/bevyengine/bevy" }
 bevy_asset = { git = "https://github.com/bevyengine/bevy" }
 bevy_render = { git = "https://github.com/bevyengine/bevy" }
 bevy_utils = { git = "https://github.com/bevyengine/bevy" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
-bevy_scene = { git = "https://github.com/bevyengine/bevy", optional = true}
-bevy_pbr = { git = "https://github.com/bevyengine/bevy", optional = true}
+bevy_ecs = { git = "https://github.com/bevyengine/bevy", optional = true  }
+bevy_scene = { git = "https://github.com/bevyengine/bevy", optional = true }
+bevy_pbr = { git = "https://github.com/bevyengine/bevy", optional = true }
 
 anyhow = "1.0"
 thiserror = "1.0"
@@ -27,7 +27,7 @@ tobj = "4.0.0"
 bevy = { git = "https://github.com/bevyengine/bevy" }
 
 [features]
-scene = ["tobj/async", "tobj/log", "dep:bevy_scene", "dep:bevy_pbr"]
+scene = ["tobj/async", "tobj/log", "dep:bevy_ecs", "dep:bevy_scene", "dep:bevy_pbr"]
 
 [[example]]
 name = "render"

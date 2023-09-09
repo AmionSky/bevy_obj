@@ -12,10 +12,7 @@ use anyhow::Result;
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy_utils::BoxedFuture;
 
-pub struct ObjLoader {
-    #[cfg(feature = "scene")]
-    pub supported_compressed_formats: bevy_render::texture::CompressedImageFormats,
-}
+pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
     type Settings = ();
@@ -23,7 +20,6 @@ impl AssetLoader for ObjLoader {
     type Asset = bevy_render::mesh::Mesh;
     #[cfg(feature = "scene")]
     type Asset = bevy_scene::Scene;
-    
 
     fn load<'a>(
         &'a self,
@@ -34,7 +30,7 @@ impl AssetLoader for ObjLoader {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
-            Ok(load_obj(self, &bytes, load_context).await?)
+            Ok(load_obj(&bytes, load_context).await?)
         })
     }
 

@@ -21,7 +21,6 @@ pub enum ObjError {
 }
 
 pub(super) async fn load_obj<'a, 'b>(
-    _loader: &ObjLoader,
     bytes: &'a [u8],
     _load_context: &'a mut LoadContext<'b>,
 ) -> Result<Mesh, ObjError> {

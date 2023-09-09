@@ -16,9 +16,6 @@ impl Plugin for ObjPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        app.register_asset_loader(ObjLoader {
-            #[cfg(feature = "scene")]
-            supported_compressed_formats: loader::scene::scf(app),
-        });
+        app.register_asset_loader(ObjLoader);
     }
 }
