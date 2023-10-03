@@ -25,6 +25,7 @@ tobj = "4.0.0"
 
 [dev-dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
 
 [features]
 scene = ["tobj/async", "tobj/log", "dep:bevy_ecs", "dep:bevy_scene", "dep:bevy_pbr"]
