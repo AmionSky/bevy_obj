@@ -16,6 +16,8 @@ impl Default for ObjLoader {
 
 #[derive(Error, Debug)]
 pub enum ObjError {
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
     InvalidFile(#[from] tobj::LoadError),
 }

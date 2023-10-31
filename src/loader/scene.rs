@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bevy_asset::{Handle, LoadContext};
+use bevy_asset::{AssetPath, Handle, LoadContext};
 use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
@@ -22,6 +22,8 @@ fn mesh_label(idx: usize) -> String {
 
 #[derive(Error, Debug)]
 pub enum ObjError {
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
     #[error("Failed to load materials for {0}: {1}")]
@@ -51,7 +53,8 @@ async fn load_obj_data<'a, 'b>(
         // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
         // Is this allowed?
         let mut ctx = load_context.begin_labeled_asset();
-        let asset_path = ctx.path().with_file_name(p);
+        let path = ctx.path().with_file_name(p);
+        let asset_path = AssetPath::from_path(&path);
         ctx.read_asset_bytes(&asset_path)
             .await
             .map_or(Err(tobj::LoadError::OpenFileFailed), |bytes| {
