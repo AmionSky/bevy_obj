@@ -10,13 +10,13 @@ repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
 [dependencies]
-bevy_app = { git = "https://github.com/bevyengine/bevy" }
-bevy_asset = { git = "https://github.com/bevyengine/bevy" }
-bevy_render = { git = "https://github.com/bevyengine/bevy" }
-bevy_utils = { git = "https://github.com/bevyengine/bevy" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy", optional = true  }
-bevy_scene = { git = "https://github.com/bevyengine/bevy", optional = true }
-bevy_pbr = { git = "https://github.com/bevyengine/bevy", optional = true }
+bevy_app = "0.12"
+bevy_asset = "0.12"
+bevy_render = "0.12"
+bevy_utils = "0.12"
+bevy_ecs = { version = "0.12", optional = true  }
+bevy_scene = { version = "0.12", optional = true }
+bevy_pbr = { version = "0.12", optional = true }
 
 anyhow = "1.0"
 thiserror = "1.0"
@@ -24,8 +24,8 @@ thiserror = "1.0"
 tobj = "4.0.0"
 
 [dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
+bevy = "0.12"
+bevy_ecs = "0.12"
 
 [features]
 scene = ["tobj/async", "tobj/log", "dep:bevy_ecs", "dep:bevy_scene", "dep:bevy_pbr"]
