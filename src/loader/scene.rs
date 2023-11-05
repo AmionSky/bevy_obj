@@ -1,16 +1,14 @@
 use anyhow::Result;
-use bevy_asset::{Handle, LoadContext, LoadedAsset};
-use bevy_ecs::world::{FromWorld, World};
+use bevy_asset::{AssetPath, Handle, LoadContext};
+use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
     mesh::{Indices, Mesh},
     prelude::Color,
     render_resource::PrimitiveTopology,
-    renderer::RenderDevice,
-    texture::{CompressedImageFormats, Image, ImageType},
+    texture::Image,
 };
 use bevy_scene::Scene;
-use bevy_utils::HashMap;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -22,20 +20,10 @@ fn mesh_label(idx: usize) -> String {
     "Mesh".to_owned() + &idx.to_string()
 }
 
-impl FromWorld for super::ObjLoader {
-    fn from_world(world: &mut World) -> Self {
-        let supported_compressed_formats = match world.get_resource::<RenderDevice>() {
-            Some(render_device) => CompressedImageFormats::from_features(render_device.features()),
-            None => CompressedImageFormats::all(),
-        };
-        Self {
-            supported_compressed_formats,
-        }
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum ObjError {
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
     #[error("Failed to load materials for {0}: {1}")]
@@ -43,7 +31,7 @@ pub enum ObjError {
     #[error("Invalid image file for texture: {0}")]
     InvalidImageFile(PathBuf),
     #[error("Asset reading failed: {0}")]
-    AssetIOError(#[from] bevy_asset::AssetIoError),
+    AssetLoadError(#[from] bevy_asset::AssetLoadError),
     #[error("Texture conversion failed: {0}")]
     TextureError(#[from] bevy_render::texture::TextureError),
 }
@@ -51,32 +39,8 @@ pub enum ObjError {
 pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
-) -> Result<(), ObjError> {
-    let obj = load_obj_scene(bytes, load_context, supported_compressed_formats).await?;
-    load_context.set_default_asset(LoadedAsset::new(obj));
-    Ok(())
-}
-
-async fn load_texture_image<'a, 'b>(
-    image_path: &'a str,
-    load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
-) -> Result<Image, ObjError> {
-    let path = load_context.path().with_file_name(image_path);
-    let extension = ImageType::Extension(
-        path.extension()
-            .and_then(|e| e.to_str())
-            .ok_or(ObjError::InvalidImageFile(path.to_path_buf()))?,
-    );
-    let bytes = load_context.asset_io().load_path(&path).await?;
-    let is_srgb = true;
-    Ok(Image::from_buffer(
-        &bytes,
-        extension,
-        supported_compressed_formats,
-        is_srgb,
-    )?)
+) -> Result<Scene, ObjError> {
+    load_obj_scene(bytes, load_context).await
 }
 
 async fn load_obj_data<'a, 'b>(
@@ -84,12 +48,14 @@ async fn load_obj_data<'a, 'b>(
     load_context: &'a mut LoadContext<'b>,
 ) -> tobj::LoadResult {
     let options = tobj::GPU_LOAD_OPTIONS;
-    let asset_io = load_context.asset_io();
-    let ctx_path = load_context.path();
-    tobj::load_obj_buf_async(&mut bytes, &options, |p| async move {
-        let asset_path = ctx_path.with_file_name(p);
-        asset_io
-            .load_path(&asset_path)
+    tobj::load_obj_buf_async(&mut bytes, &options, |p| async {
+        // We don't use the MTL material as an asset, just load the bytes of it.
+        // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
+        // Is this allowed?
+        let mut ctx = load_context.begin_labeled_asset();
+        let path = ctx.path().with_file_name(p);
+        let asset_path = AssetPath::from_path(&path);
+        ctx.read_asset_bytes(&asset_path)
             .await
             .map_or(Err(tobj::LoadError::OpenFileFailed), |bytes| {
                 tobj::load_mtl_buf(&mut bytes.as_slice())
@@ -98,32 +64,21 @@ async fn load_obj_data<'a, 'b>(
     .await
 }
 
-async fn load_mat_texture<'a, 'b>(
+fn load_mat_texture(
     texture: &Option<String>,
-    texture_handles: &mut HashMap<String, Handle<Image>>,
-    load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
-) -> Result<Option<Handle<Image>>, ObjError> {
+    load_context: &mut LoadContext,
+) -> Option<Handle<Image>> {
     if let Some(texture) = texture {
-        let handle = if let Some(handle) = texture_handles.get(texture) {
-            handle.clone()
-        } else {
-            let img =
-                load_texture_image(texture, load_context, supported_compressed_formats).await?;
-            let handle = load_context.set_labeled_asset(texture, LoadedAsset::new(img));
-            texture_handles.insert(texture.clone(), handle.clone());
-            handle
-        };
-        Ok(Some(handle))
+        let path = load_context.path().with_file_name(texture);
+        Some(load_context.load(path))
     } else {
-        Ok(None)
+        None
     }
 }
 
 async fn load_obj_scene<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
-    supported_compressed_formats: CompressedImageFormats,
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, load_context).await?;
     let materials = materials.map_err(|err| {
@@ -132,31 +87,16 @@ async fn load_obj_scene<'a, 'b>(
     })?;
 
     let mut mat_handles = Vec::with_capacity(materials.len());
-    let mut texture_handles = HashMap::new();
     for (mat_idx, mat) in materials.into_iter().enumerate() {
         let mut material = StandardMaterial {
-            base_color_texture: load_mat_texture(
-                &mat.diffuse_texture,
-                &mut texture_handles,
-                load_context,
-                supported_compressed_formats,
-            )
-            .await?,
-            normal_map_texture: load_mat_texture(
-                &mat.normal_texture,
-                &mut texture_handles,
-                load_context,
-                supported_compressed_formats,
-            )
-            .await?,
+            base_color_texture: load_mat_texture(&mat.diffuse_texture, load_context),
+            normal_map_texture: load_mat_texture(&mat.normal_texture, load_context),
             ..Default::default()
         };
         if let Some(color) = mat.diffuse {
             material.base_color = Color::rgb(color[0], color[1], color[2]);
         }
-        mat_handles.push(
-            load_context.set_labeled_asset(&material_label(mat_idx), LoadedAsset::new(material)),
-        );
+        mat_handles.push(load_context.add_labeled_asset(material_label(mat_idx), material));
     }
 
     let mut world = World::default();
@@ -195,8 +135,7 @@ async fn load_obj_scene<'a, 'b>(
             mesh.compute_flat_normals();
         }
 
-        let mesh_handle =
-            load_context.set_labeled_asset(&mesh_label(model_idx), LoadedAsset::new(mesh));
+        let mesh_handle = load_context.add_labeled_asset(mesh_label(model_idx), mesh);
 
         let mut pbr_bundle = PbrBundle {
             mesh: mesh_handle,

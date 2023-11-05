@@ -8,31 +8,34 @@ pub mod mesh;
 #[cfg(not(feature = "scene"))]
 pub use mesh::*;
 
-use bevy_asset::{AssetLoader, BoxedFuture, LoadContext};
+use anyhow::Result;
+use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
+use bevy_utils::BoxedFuture;
 
-pub struct ObjLoader {
-    #[cfg(feature = "scene")]
-    supported_compressed_formats: bevy_render::texture::CompressedImageFormats,
-}
+pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
+    type Error = ObjError;
+    type Settings = ();
+    #[cfg(not(feature = "scene"))]
+    type Asset = bevy_render::mesh::Mesh;
+    #[cfg(feature = "scene")]
+    type Asset = bevy_scene::Scene;
+
     fn load<'a>(
         &'a self,
-        bytes: &'a [u8],
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
         load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, anyhow::Result<()>> {
+    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
-            Ok(load_obj(
-                bytes,
-                load_context,
-                #[cfg(feature = "scene")]
-                self.supported_compressed_formats,
-            )
-            .await?)
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
+            load_obj(&bytes, load_context).await
         })
     }
 
     fn extensions(&self) -> &[&str] {
-        &["obj"]
+        super::EXTENSIONS
     }
 }
