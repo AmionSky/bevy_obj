@@ -53,8 +53,8 @@ async fn load_obj_data<'a, 'b>(
         // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
         // Is this allowed?
         let mut ctx = load_context.begin_labeled_asset();
-        let path = ctx.path().with_file_name(p);
-        let asset_path = AssetPath::from_path(&path);
+        let path = PathBuf::from(ctx.asset_path().to_string()).with_file_name(p);
+        let asset_path = AssetPath::from(path.to_string_lossy().into_owned());
         ctx.read_asset_bytes(&asset_path)
             .await
             .map_or(Err(tobj::LoadError::OpenFileFailed), |bytes| {
@@ -69,8 +69,9 @@ fn load_mat_texture(
     load_context: &mut LoadContext,
 ) -> Option<Handle<Image>> {
     if let Some(texture) = texture {
-        let path = load_context.path().with_file_name(texture);
-        Some(load_context.load(path))
+        let path = PathBuf::from(load_context.asset_path().to_string()).with_file_name(texture);
+        let asset_path = AssetPath::from(path.to_string_lossy().into_owned());
+        Some(load_context.load(&asset_path))
     } else {
         None
     }
