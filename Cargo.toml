@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.12.0"
+version = "0.12.1"
 authors = ["Csányi István <icsanyi96@gmail.com>"]
 edition = "2021"
 license = "MIT"
