@@ -3,6 +3,7 @@ use anyhow::Result;
 use bevy_asset::LoadContext;
 use bevy_render::{
     mesh::{Indices, Mesh},
+    render_asset::RenderAssetUsages,
     render_resource::PrimitiveTopology,
 };
 use thiserror::Error;
@@ -69,8 +70,11 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
         indices.extend(model.mesh.indices.iter().map(|i| i + index_offset));
     }
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-    mesh.set_indices(Some(Indices::U32(indices)));
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_indices(Indices::U32(indices));
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
     if !vertex_texture.is_empty() {

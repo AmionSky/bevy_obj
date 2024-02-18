@@ -5,6 +5,7 @@ use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
     mesh::{Indices, Mesh},
     prelude::Color,
+    render_asset::RenderAssetUsages,
     render_resource::PrimitiveTopology,
     texture::Image,
 };
@@ -121,8 +122,11 @@ async fn load_obj_scene<'a, 'b>(
             .map(|t| [t[0], 1.0 - t[1]])
             .collect();
 
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_indices(Some(Indices::U32(model.mesh.indices)));
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        );
+        mesh.insert_indices(Indices::U32(model.mesh.indices));
 
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
         if !vertex_texture.is_empty() {
