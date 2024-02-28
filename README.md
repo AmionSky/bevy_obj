@@ -12,8 +12,8 @@ Add the crate as a dependency:
 
 ```toml
 [dependencies]
-bevy = "0.11"
-bevy_obj = "0.11"
+bevy = "0.13"
+bevy_obj = "0.13"
 ```
 
 Add the plugin:
