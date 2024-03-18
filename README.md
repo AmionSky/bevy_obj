@@ -43,6 +43,6 @@ If you prefer loading `.obj` files as a scene with *(limited)* MTL material supp
 
 ```toml
 [dependencies]
-bevy = "0.11"
-bevy_obj = { version = "0.11", features = ["scene"] }
+bevy = "0.13"
+bevy_obj = { version = "0.13", features = ["scene"] }
 ```
