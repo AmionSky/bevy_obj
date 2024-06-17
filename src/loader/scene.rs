@@ -1,10 +1,9 @@
-use anyhow::Result;
+use bevy_color::Color;
 use bevy_asset::{AssetPath, Handle, LoadContext};
 use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
     mesh::{Indices, Mesh},
-    prelude::Color,
     render_asset::RenderAssetUsages,
     render_resource::PrimitiveTopology,
     texture::Image,
@@ -12,6 +11,8 @@ use bevy_render::{
 use bevy_scene::Scene;
 use std::path::PathBuf;
 use thiserror::Error;
+
+pub type AssetType = Scene;
 
 fn material_label(idx: usize) -> String {
     "Material".to_owned() + &idx.to_string()
@@ -96,7 +97,7 @@ async fn load_obj_scene<'a, 'b>(
             ..Default::default()
         };
         if let Some(color) = mat.diffuse {
-            material.base_color = Color::rgb(color[0], color[1], color[2]);
+            material.base_color = Color::srgb(color[0], color[1], color[2]);
         }
         mat_handles.push(load_context.add_labeled_asset(material_label(mat_idx), material));
     }

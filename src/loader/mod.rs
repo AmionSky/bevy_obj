@@ -1,33 +1,24 @@
-#[cfg(feature = "scene")]
-pub mod scene;
-#[cfg(feature = "scene")]
-pub use scene::*;
+#[cfg_attr(not(feature = "scene"), path = "mesh.rs")]
+#[cfg_attr(feature = "scene", path = "scene.rs")]
+mod load_impl;
+pub use load_impl::*;
 
-#[cfg(not(feature = "scene"))]
-pub mod mesh;
-#[cfg(not(feature = "scene"))]
-pub use mesh::*;
-
-use anyhow::Result;
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
-use bevy_utils::BoxedFuture;
+use bevy_utils::ConditionalSendFuture;
 
 pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
     type Error = ObjError;
     type Settings = ();
-    #[cfg(not(feature = "scene"))]
-    type Asset = bevy_render::mesh::Mesh;
-    #[cfg(feature = "scene")]
-    type Asset = bevy_scene::Scene;
+    type Asset = AssetType;
 
     fn load<'a>(
         &'a self,
         reader: &'a mut Reader,
         _settings: &'a Self::Settings,
         load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
+    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;

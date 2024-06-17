@@ -1,5 +1,3 @@
-use super::ObjLoader;
-use anyhow::Result;
 use bevy_asset::LoadContext;
 use bevy_render::{
     mesh::{Indices, Mesh},
@@ -8,12 +6,7 @@ use bevy_render::{
 };
 use thiserror::Error;
 
-#[allow(clippy::derivable_impls)] // TODO remove?
-impl Default for ObjLoader {
-    fn default() -> Self {
-        Self {}
-    }
-}
+pub type AssetType = Mesh;
 
 #[derive(Error, Debug)]
 pub enum ObjError {
