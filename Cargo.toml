@@ -10,21 +10,21 @@ repository = "https://github.com/AmionSky/bevy_obj"
 readme = "README.md"
 
 [dependencies]
-bevy_app = "0.14.0-rc.3"
-bevy_asset = "0.14.0-rc.3"
-bevy_render = "0.14.0-rc.3"
-bevy_utils = "0.14.0-rc.3"
-bevy_ecs = { version = "0.14.0-rc.3", optional = true  }
-bevy_scene = { version = "0.14.0-rc.3", optional = true }
-bevy_pbr = { version = "0.14.0-rc.3", optional = true }
-bevy_color = { version = "0.14.0-rc.3", optional = true }
+bevy_app = "0.14.0"
+bevy_asset = "0.14.0"
+bevy_render = "0.14.0"
+bevy_utils = "0.14.0"
+bevy_ecs = { version = "0.14.0", optional = true  }
+bevy_scene = { version = "0.14.0", optional = true }
+bevy_pbr = { version = "0.14.0", optional = true }
+bevy_color = { version = "0.14.0", optional = true }
 
 thiserror = "1.0"
 tobj = "4.0.0"
 
 [dev-dependencies]
-bevy = "0.14.0-rc.3"
-bevy_ecs = "0.14.0-rc.3" # To fix bevy macro bug
+bevy = "0.14.0"
+bevy_ecs = "0.14.0" # To fix bevy macro bug
 
 [features]
 scene = ["tobj/async", "tobj/log", "dep:bevy_ecs", "dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_color"]
