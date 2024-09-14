@@ -3,7 +3,12 @@ use bevy_obj::ObjPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, ObjPlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ObjPlugin {
+                compute_smooth_normals: true,
+            },
+        ))
         .add_systems(Startup, (load, setup))
         .add_systems(Update, spin)
         .run();

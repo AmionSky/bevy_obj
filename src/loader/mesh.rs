@@ -19,11 +19,12 @@ pub enum ObjError {
 pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     _load_context: &'a mut LoadContext<'b>,
+    smooth: bool,
 ) -> Result<Mesh, ObjError> {
-    load_obj_from_bytes(bytes)
+    load_obj_from_bytes(bytes, smooth)
 }
 
-pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
+pub fn load_obj_from_bytes(mut bytes: &[u8], smooth: bool) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
     let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
         Err(tobj::LoadError::GenericFailure)
@@ -76,6 +77,9 @@ pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
 
     if !vertex_normal.is_empty() {
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
+    } else if smooth {
+        // If no indicies are found still computes flat normals
+        mesh.compute_normals();
     } else {
         mesh.duplicate_vertices();
         mesh.compute_flat_normals();

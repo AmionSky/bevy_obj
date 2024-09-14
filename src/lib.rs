@@ -8,7 +8,10 @@ const EXTENSIONS: &[&str; 1] = &["obj"];
 
 /// Adds support for Obj file loading to Apps
 #[derive(Default)]
-pub struct ObjPlugin;
+pub struct ObjPlugin {
+    /// Computes smooth normals instead of flat if no normals were found for the mesh.
+    pub compute_smooth_normals: bool,
+}
 
 impl Plugin for ObjPlugin {
     fn build(&self, app: &mut App) {
@@ -16,6 +19,6 @@ impl Plugin for ObjPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        app.register_asset_loader(ObjLoader);
+        app.register_asset_loader(ObjLoader::new(self.compute_smooth_normals));
     }
 }

@@ -1,5 +1,5 @@
-use bevy_color::Color;
 use bevy_asset::{AssetPath, Handle, LoadContext};
+use bevy_color::Color;
 use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
@@ -41,8 +41,9 @@ pub enum ObjError {
 pub(super) async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
+    smooth: bool,
 ) -> Result<Scene, ObjError> {
-    load_obj_scene(bytes, load_context).await
+    load_obj_scene(bytes, load_context, smooth).await
 }
 
 async fn load_obj_data<'a, 'b>(
@@ -82,6 +83,7 @@ fn load_mat_texture(
 async fn load_obj_scene<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
+    smooth: bool,
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, load_context).await?;
     let materials = materials.map_err(|err| {
@@ -136,6 +138,9 @@ async fn load_obj_scene<'a, 'b>(
 
         if !vertex_normal.is_empty() {
             mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
+        } else if smooth {
+            // If no indicies are found still computes flat normals
+            mesh.compute_normals();
         } else {
             mesh.duplicate_vertices();
             mesh.compute_flat_normals();

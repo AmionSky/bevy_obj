@@ -6,7 +6,15 @@ pub use load_impl::*;
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy_utils::ConditionalSendFuture;
 
-pub struct ObjLoader;
+pub struct ObjLoader {
+    pub smooth: bool,
+}
+
+impl ObjLoader {
+    pub fn new(smooth: bool) -> Self {
+        Self { smooth }
+    }
+}
 
 impl AssetLoader for ObjLoader {
     type Error = ObjError;
@@ -22,7 +30,7 @@ impl AssetLoader for ObjLoader {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
-            load_obj(&bytes, load_context).await
+            load_obj(&bytes, load_context, self.smooth).await
         })
     }
 
