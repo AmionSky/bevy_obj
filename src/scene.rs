@@ -1,5 +1,5 @@
+use bevy_asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, Handle, LoadContext};
 use bevy_color::Color;
-use bevy_asset::{AssetPath, Handle, LoadContext};
 use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
 use bevy_render::{
@@ -9,20 +9,35 @@ use bevy_render::{
     texture::Image,
 };
 use bevy_scene::Scene;
+use bevy_utils::ConditionalSendFuture;
 use std::path::PathBuf;
-use thiserror::Error;
 
-pub type AssetType = Scene;
+pub struct ObjLoader;
 
-fn material_label(idx: usize) -> String {
-    "Material".to_owned() + &idx.to_string()
+impl AssetLoader for ObjLoader {
+    type Error = ObjError;
+    type Settings = ();
+    type Asset = Scene;
+
+    fn load<'a>(
+        &'a self,
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
+        load_context: &'a mut LoadContext,
+    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
+        Box::pin(async move {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
+            load_obj(&bytes, load_context).await
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        crate::EXTENSIONS
+    }
 }
 
-fn mesh_label(idx: usize) -> String {
-    "Mesh".to_owned() + &idx.to_string()
-}
-
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ObjError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
@@ -38,11 +53,11 @@ pub enum ObjError {
     TextureError(#[from] bevy_render::texture::TextureError),
 }
 
-pub(super) async fn load_obj<'a, 'b>(
+async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> Result<Scene, ObjError> {
-    load_obj_scene(bytes, load_context).await
+    load_obj_as_scene(bytes, load_context).await
 }
 
 async fn load_obj_data<'a, 'b>(
@@ -79,7 +94,7 @@ fn load_mat_texture(
     }
 }
 
-async fn load_obj_scene<'a, 'b>(
+async fn load_obj_as_scene<'a, 'b>(
     bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> Result<Scene, ObjError> {
@@ -99,7 +114,7 @@ async fn load_obj_scene<'a, 'b>(
         if let Some(color) = mat.diffuse {
             material.base_color = Color::srgb(color[0], color[1], color[2]);
         }
-        mat_handles.push(load_context.add_labeled_asset(material_label(mat_idx), material));
+        mat_handles.push(load_context.add_labeled_asset(format!("Material{mat_idx}"), material));
     }
 
     let mut world = World::default();
@@ -141,7 +156,7 @@ async fn load_obj_scene<'a, 'b>(
             mesh.compute_flat_normals();
         }
 
-        let mesh_handle = load_context.add_labeled_asset(mesh_label(model_idx), mesh);
+        let mesh_handle = load_context.add_labeled_asset(format!("Mesh{model_idx}"), mesh);
 
         let mut pbr_bundle = PbrBundle {
             mesh: mesh_handle,

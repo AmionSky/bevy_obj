@@ -1,14 +1,37 @@
-use bevy_asset::LoadContext;
+use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy_render::{
     mesh::{Indices, Mesh},
     render_asset::RenderAssetUsages,
     render_resource::PrimitiveTopology,
 };
-use thiserror::Error;
+use bevy_utils::ConditionalSendFuture;
 
-pub type AssetType = Mesh;
+pub struct ObjLoader;
 
-#[derive(Error, Debug)]
+impl AssetLoader for ObjLoader {
+    type Error = ObjError;
+    type Settings = ();
+    type Asset = Mesh;
+
+    fn load<'a>(
+        &'a self,
+        reader: &'a mut Reader,
+        _settings: &'a Self::Settings,
+        load_context: &'a mut LoadContext,
+    ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
+        Box::pin(async move {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
+            load_obj(&bytes, load_context).await
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        crate::EXTENSIONS
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum ObjError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
@@ -16,14 +39,14 @@ pub enum ObjError {
     InvalidFile(#[from] tobj::LoadError),
 }
 
-pub(super) async fn load_obj<'a, 'b>(
+async fn load_obj<'a, 'b>(
     bytes: &'a [u8],
     _load_context: &'a mut LoadContext<'b>,
 ) -> Result<Mesh, ObjError> {
-    load_obj_from_bytes(bytes)
+    load_obj_as_mesh(bytes)
 }
 
-pub fn load_obj_from_bytes(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
+pub fn load_obj_as_mesh(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
     let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
         Err(tobj::LoadError::GenericFailure)

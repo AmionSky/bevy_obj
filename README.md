@@ -12,8 +12,8 @@ Add the crate as a dependency:
 
 ```toml
 [dependencies]
-bevy = "0.13"
-bevy_obj = "0.13"
+bevy = "0.14"
+bevy_obj = "0.14"
 ```
 
 Add the plugin:
@@ -29,20 +29,20 @@ fn main() {
 }
 ```
 
-Load the `.obj` file as a single mesh:
+Load the `.obj` file:
 
 ```rust
 fn example_startup_system(asset_server: Res<AssetServer>) {
-    let mesh_handle = asset_server.load("example.obj");
+    // Load it as a singular mesh
+    let mesh_handle = asset_server.load::<Mesh>("example.obj");
+
+    // Load it as a scene with limited .mtl material support
+    let scene_handle = asset_server.load::<Scene>("example.obj");
+
+    // Or let bevy infer the type
+    let model = PbrBundle {
+        mesh: asset_server.load("example.obj"),
+        ..default()
+    };
 }
-```
-
-### Scene based loading
-
-If you prefer loading `.obj` files as a scene with *(limited)* MTL material support, add the `scene` feature
-
-```toml
-[dependencies]
-bevy = "0.13"
-bevy_obj = { version = "0.13", features = ["scene"] }
 ```

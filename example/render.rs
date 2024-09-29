@@ -4,13 +4,12 @@ use bevy_obj::ObjPlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, ObjPlugin))
-        .add_systems(Startup, (load, setup))
+        .add_systems(Startup, (load_mesh, load_scene, setup))
         .add_systems(Update, spin)
         .run();
 }
 
-#[cfg(not(feature = "scene"))]
-fn load(
+fn load_mesh(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -18,6 +17,7 @@ fn load(
     // Spawn a spinning cube
     commands.spawn((
         PbrBundle {
+            transform: Transform::from_translation(Vec3::new(-1.7, 0.0, 0.5)),
             mesh: asset_server.load("cube.obj"),
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(asset_server.load("cube.png")),
@@ -29,11 +29,11 @@ fn load(
     ));
 }
 
-#[cfg(feature = "scene")]
-fn load(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn load_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn a spinning cube
     commands.spawn((
         SceneBundle {
+            transform: Transform::from_translation(Vec3::new(1.7, 0.0, -0.5)),
             scene: asset_server.load("cube.obj"),
             ..default()
         },
@@ -48,7 +48,7 @@ fn setup(mut commands: Commands) {
         ..default()
     });
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(1.5, 2.7, 4.0))
+        transform: Transform::from_translation(Vec3::new(1.7, 2.7, 4.4))
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
         ..default()
     });
