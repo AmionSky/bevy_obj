@@ -1,4 +1,4 @@
-use crate::{convert_uv, convert_vec3};
+use crate::{convert_uv, convert_vec3, ObjSettings};
 use bevy_asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, Handle, LoadContext};
 use bevy_color::Color;
 use bevy_ecs::world::World;
@@ -17,19 +17,19 @@ pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
     type Error = ObjError;
-    type Settings = ();
+    type Settings = ObjSettings;
     type Asset = Scene;
 
     fn load<'a>(
         &'a self,
         reader: &'a mut Reader,
-        _settings: &'a Self::Settings,
+        settings: &'a Self::Settings,
         load_context: &'a mut LoadContext,
     ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
-            load_obj_as_scene(&bytes, load_context).await
+            load_obj_as_scene(&bytes, load_context, settings).await
         })
     }
 
@@ -79,6 +79,7 @@ fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'
 async fn load_obj_as_scene<'a, 'b>(
     bytes: &'a [u8],
     ctx: &'a mut LoadContext<'b>,
+    settings: &'a ObjSettings,
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, ctx).await?;
     let materials = materials.map_err(|err| {
@@ -113,11 +114,13 @@ async fn load_obj_as_scene<'a, 'b>(
             mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, convert_uv(model.mesh.texcoords));
         }
 
-        if !model.mesh.normals.is_empty() {
+        if !model.mesh.normals.is_empty() && !settings.force_compute_normals {
             mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, convert_vec3(model.mesh.normals));
-        } else {
+        } else if settings.prefer_flat_normals {
             mesh.duplicate_vertices();
             mesh.compute_flat_normals();
+        } else {
+            mesh.compute_normals();
         }
 
         let mesh_handle = ctx.add_labeled_asset(format!("Mesh{model_idx}"), mesh);

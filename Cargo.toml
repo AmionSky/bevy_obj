@@ -21,6 +21,7 @@ bevy_color = { version = "0.14.0", optional = true }
 
 thiserror = "1.0"
 tobj = "4.0.0"
+serde = { version = "1.0.0", features = ["derive"] }
 
 [dev-dependencies]
 bevy = "0.14.0"

@@ -5,6 +5,7 @@ pub mod scene;
 
 use bevy_app::{App, Plugin};
 use bevy_asset::AssetApp;
+use serde::{Serialize,Deserialize};
 
 const EXTENSIONS: &[&str; 1] = &["obj"];
 
@@ -34,4 +35,13 @@ fn convert_vec3(vec: Vec<f32>) -> Vec<[f32; 3]> {
 
 fn convert_uv(uv: Vec<f32>) -> Vec<[f32; 2]> {
     uv.chunks_exact(2).map(|t| [t[0], 1.0 - t[1]]).collect()
+}
+
+/// OBJ asset loader settings
+#[derive(Default, Serialize, Deserialize)]
+pub struct ObjSettings {
+    /// Force compute the normals even if the mesh contains normals
+    pub force_compute_normals: bool,
+    /// Prefer flat normals over smooth normals when computing them
+    pub prefer_flat_normals: bool,
 }

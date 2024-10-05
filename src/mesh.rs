@@ -1,4 +1,4 @@
-use crate::{convert_uv, convert_vec3};
+use crate::{ObjSettings, convert_uv, convert_vec3};
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy_render::{
     mesh::{Indices, Mesh},
@@ -11,19 +11,19 @@ pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
     type Error = ObjError;
-    type Settings = ();
+    type Settings = ObjSettings;
     type Asset = Mesh;
 
     fn load<'a>(
         &'a self,
         reader: &'a mut Reader,
-        _settings: &'a Self::Settings,
+        settings: &'a Self::Settings,
         _load_context: &'a mut LoadContext,
     ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
-            load_obj_as_mesh(&bytes)
+            load_obj_as_mesh(&bytes, settings)
         })
     }
 
@@ -40,7 +40,7 @@ pub enum ObjError {
     InvalidFile(#[from] tobj::LoadError),
 }
 
-pub fn load_obj_as_mesh(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
+pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
     let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
         Err(tobj::LoadError::GenericFailure)
@@ -80,11 +80,13 @@ pub fn load_obj_as_mesh(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vertex_texture);
     }
 
-    if !vertex_normal.is_empty() {
+    if !vertex_normal.is_empty() && !settings.force_compute_normals {
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
-    } else {
+    } else if settings.prefer_flat_normals {
         mesh.duplicate_vertices();
         mesh.compute_flat_normals();
+    } else {
+        mesh.compute_normals();
     }
 
     Ok(mesh)
