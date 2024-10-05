@@ -1,4 +1,4 @@
-use crate::{ObjSettings, convert_uv, convert_vec3};
+use crate::{convert_uv, convert_vec3, ObjSettings};
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy_render::{
     mesh::{Indices, Mesh},
