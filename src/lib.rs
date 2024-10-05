@@ -27,3 +27,11 @@ impl Plugin for ObjPlugin {
         app.register_asset_loader(scene::ObjLoader);
     }
 }
+
+fn convert_vec3(vec: Vec<f32>) -> Vec<[f32; 3]> {
+    vec.chunks_exact(3).map(|v| [v[0], v[1], v[2]]).collect()
+}
+
+fn convert_uv(uv: Vec<f32>) -> Vec<[f32; 2]> {
+    uv.chunks_exact(2).map(|t| [t[0], 1.0 - t[1]]).collect()
+}

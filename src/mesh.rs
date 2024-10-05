@@ -1,3 +1,4 @@
+use crate::{convert_uv, convert_vec3};
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy_render::{
     mesh::{Indices, Mesh},
@@ -17,12 +18,12 @@ impl AssetLoader for ObjLoader {
         &'a self,
         reader: &'a mut Reader,
         _settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext,
+        _load_context: &'a mut LoadContext,
     ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
-            load_obj(&bytes, load_context).await
+            load_obj_as_mesh(&bytes)
         })
     }
 
@@ -39,13 +40,6 @@ pub enum ObjError {
     InvalidFile(#[from] tobj::LoadError),
 }
 
-async fn load_obj<'a, 'b>(
-    bytes: &'a [u8],
-    _load_context: &'a mut LoadContext<'b>,
-) -> Result<Mesh, ObjError> {
-    load_obj_as_mesh(bytes)
-}
-
 pub fn load_obj_as_mesh(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let options = tobj::GPU_LOAD_OPTIONS;
     let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
@@ -56,43 +50,32 @@ pub fn load_obj_as_mesh(mut bytes: &[u8]) -> Result<Mesh, ObjError> {
     let mut vertex_position = Vec::new();
     let mut vertex_normal = Vec::new();
     let mut vertex_texture = Vec::new();
+
     for model in obj.0 {
-        let index_offset = vertex_position.len() as u32; // Offset of the indices
+        // Get the offset of the indices
+        let index_offset = vertex_position.len() as u32;
+
+        // Reserve the exact space needed in the vector
         indices.reserve(model.mesh.indices.len());
         vertex_position.reserve(model.mesh.positions.len() / 3);
         vertex_normal.reserve(model.mesh.normals.len() / 3);
         vertex_texture.reserve(model.mesh.texcoords.len() / 2);
-        vertex_position.extend(
-            model
-                .mesh
-                .positions
-                .chunks_exact(3)
-                .map(|v| [v[0], v[1], v[2]]),
-        );
-        vertex_normal.extend(
-            model
-                .mesh
-                .normals
-                .chunks_exact(3)
-                .map(|n| [n[0], n[1], n[2]]),
-        );
-        vertex_texture.extend(
-            model
-                .mesh
-                .texcoords
-                .chunks_exact(2)
-                .map(|t| [t[0], 1.0 - t[1]]),
-        );
-        indices.extend(model.mesh.indices.iter().map(|i| i + index_offset));
+
+        // Extend the vector
+        indices.extend(model.mesh.indices.into_iter().map(|i| i + index_offset));
+        vertex_position.extend(convert_vec3(model.mesh.positions));
+        vertex_normal.extend(convert_vec3(model.mesh.normals));
+        vertex_texture.extend(convert_uv(model.mesh.texcoords));
     }
 
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
     );
-    mesh.insert_indices(Indices::U32(indices));
 
+    mesh.insert_indices(Indices::U32(indices));
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
+
     if !vertex_texture.is_empty() {
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vertex_texture);
     }
