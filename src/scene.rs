@@ -1,14 +1,9 @@
-use crate::{convert_uv, convert_vec3, ObjSettings};
+use crate::{util::MeshConverter, ObjSettings};
 use bevy_asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, Handle, LoadContext};
 use bevy_color::Color;
 use bevy_ecs::world::World;
 use bevy_pbr::{PbrBundle, StandardMaterial};
-use bevy_render::{
-    mesh::{Indices, Mesh},
-    render_asset::RenderAssetUsages,
-    render_resource::PrimitiveTopology,
-    texture::Image,
-};
+use bevy_render::texture::Image;
 use bevy_scene::Scene;
 use bevy_utils::ConditionalSendFuture;
 use std::path::PathBuf;
@@ -52,8 +47,7 @@ async fn load_obj_data<'a, 'b>(
     mut bytes: &'a [u8],
     load_context: &'a mut LoadContext<'b>,
 ) -> tobj::LoadResult {
-    let options = tobj::GPU_LOAD_OPTIONS;
-    tobj::load_obj_buf_async(&mut bytes, &options, |p| async {
+    tobj::load_obj_buf_async(&mut bytes, &tobj::GPU_LOAD_OPTIONS, |p| async {
         use tobj::LoadError::OpenFileFailed;
         // We don't use the MTL material as an asset, just load the bytes of it.
         // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
@@ -102,34 +96,15 @@ async fn load_obj_as_scene<'a, 'b>(
 
     let mut world = World::default();
     for (model_idx, model) in models.into_iter().enumerate() {
-        let mut mesh = Mesh::new(
-            PrimitiveTopology::TriangleList,
-            RenderAssetUsages::default(),
+        let material_id = model.mesh.material_id;
+        let mesh_handle = ctx.add_labeled_asset(
+            format!("Mesh{model_idx}"),
+            MeshConverter::from(model).convert(settings),
         );
-
-        mesh.insert_indices(Indices::U32(model.mesh.indices));
-        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, convert_vec3(model.mesh.positions));
-
-        if !model.mesh.texcoords.is_empty() {
-            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, convert_uv(model.mesh.texcoords));
-        }
-
-        if !model.mesh.normals.is_empty() && !settings.force_compute_normals {
-            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, convert_vec3(model.mesh.normals));
-        } else if settings.prefer_flat_normals {
-            mesh.duplicate_vertices();
-            mesh.compute_flat_normals();
-        } else {
-            mesh.compute_normals();
-        }
-
-        let mesh_handle = ctx.add_labeled_asset(format!("Mesh{model_idx}"), mesh);
 
         let pbr_bundle = PbrBundle {
             mesh: mesh_handle,
-            material: model
-                .mesh
-                .material_id
+            material: material_id
                 .map(|id| mat_handles[id].clone())
                 .unwrap_or_default(),
             ..Default::default()

@@ -1,10 +1,6 @@
-use crate::{convert_uv, convert_vec3, ObjSettings};
+use crate::{util::MeshConverter, ObjSettings};
 use bevy_asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
-use bevy_render::{
-    mesh::{Indices, Mesh},
-    render_asset::RenderAssetUsages,
-    render_resource::PrimitiveTopology,
-};
+use bevy_render::mesh::Mesh;
 use bevy_utils::ConditionalSendFuture;
 
 pub struct ObjLoader;
@@ -41,53 +37,9 @@ pub enum ObjError {
 }
 
 pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
-    let options = tobj::GPU_LOAD_OPTIONS;
-    let obj = tobj::load_obj_buf(&mut bytes, &options, |_| {
+    let obj = tobj::load_obj_buf(&mut bytes, &tobj::GPU_LOAD_OPTIONS, |_| {
         Err(tobj::LoadError::GenericFailure)
     })?;
 
-    let mut indices = Vec::new();
-    let mut vertex_position = Vec::new();
-    let mut vertex_normal = Vec::new();
-    let mut vertex_texture = Vec::new();
-
-    for model in obj.0 {
-        // Get the offset of the indices
-        let index_offset = vertex_position.len() as u32;
-
-        // Reserve the exact space needed in the vector
-        indices.reserve(model.mesh.indices.len());
-        vertex_position.reserve(model.mesh.positions.len() / 3);
-        vertex_normal.reserve(model.mesh.normals.len() / 3);
-        vertex_texture.reserve(model.mesh.texcoords.len() / 2);
-
-        // Extend the vector
-        indices.extend(model.mesh.indices.into_iter().map(|i| i + index_offset));
-        vertex_position.extend(convert_vec3(model.mesh.positions));
-        vertex_normal.extend(convert_vec3(model.mesh.normals));
-        vertex_texture.extend(convert_uv(model.mesh.texcoords));
-    }
-
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    );
-
-    mesh.insert_indices(Indices::U32(indices));
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertex_position);
-
-    if !vertex_texture.is_empty() {
-        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vertex_texture);
-    }
-
-    if !vertex_normal.is_empty() && !settings.force_compute_normals {
-        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vertex_normal);
-    } else if settings.prefer_flat_normals {
-        mesh.duplicate_vertices();
-        mesh.compute_flat_normals();
-    } else {
-        mesh.compute_normals();
-    }
-
-    Ok(mesh)
+    Ok(MeshConverter::from(obj.0).convert(settings))
 }
