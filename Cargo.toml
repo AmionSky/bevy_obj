@@ -1,38 +1,34 @@
 [package]
 name = "bevy_obj"
 version = "0.14.0"
-authors = ["Csányi István <icsanyi96@gmail.com>"]
 edition = "2021"
-license = "MIT"
-description = "A Wavefront .obj mesh asset loader plugin for the Bevy engine"
-keywords = ["bevy", "obj"]
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
-readme = "README.md"
+description = "Wavefront OBJ mesh asset loader plugin for the Bevy engine"
+keywords = ["bevy", "obj"]
+authors = ["Csányi István <icsanyi96@gmail.com>"]
+exclude = ["/assets"]
 
 [dependencies]
-bevy_app = "0.14.0"
-bevy_asset = "0.14.0"
-bevy_render = "0.14.0"
-bevy_utils = "0.14.0"
-bevy_ecs = { version = "0.14.0", optional = true  }
-bevy_scene = { version = "0.14.0", optional = true }
-bevy_pbr = { version = "0.14.0", optional = true }
-bevy_color = { version = "0.14.0", optional = true }
-
-thiserror = "1.0"
-tobj = "4.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
+thiserror = "1.0.0"
+tobj = "4.0.0"
 
-[dev-dependencies]
-bevy = "0.14.0"
-bevy_ecs = "0.14.0" # To fix bevy macro bug
+[dependencies.bevy]
+version = "0.14.0"
+default-features = false
+features = ["bevy_asset", "bevy_render"]
+
+[dev-dependencies.bevy]
+version = "0.14.0"
+default-features = true
 
 [features]
 default = ["mesh", "scene"]
 mesh = []
-scene = ["tobj/async", "dep:bevy_ecs", "dep:bevy_scene", "dep:bevy_pbr", "dep:bevy_color"]
+scene = ["tobj/async", "bevy/bevy_scene", "bevy/bevy_pbr"]
 log = ["tobj/log"]
 
 [[example]]
-name = "render"
-path = "example/render.rs"
+name = "cube"
+path = "example/cube.rs"

@@ -2,13 +2,13 @@
 
 [![Crates.io](https://img.shields.io/crates/v/bevy_obj.svg)](https://crates.io/crates/bevy_obj)
 
-A Wavefront .obj mesh asset loader plugin for the [Bevy engine](https://github.com/bevyengine/bevy).
+Wavefront OBJ mesh asset loader plugin for the [Bevy engine](https://github.com/bevyengine/bevy).
 
 ## Usage:
 
 Add the crate as a dependency:
 
-*Major and Minor version number should match bevy version*
+**Major and Minor version number should match bevy version.**
 
 ```toml
 [dependencies]
@@ -66,3 +66,12 @@ fn example_startup_system(asset_server: Res<AssetServer>) {
     };
 }
 ```
+
+## License
+
+Licensed under either of
+
+ * MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option.

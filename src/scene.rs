@@ -1,12 +1,11 @@
 use crate::{util::MeshConverter, ObjSettings};
-use bevy_asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, Handle, LoadContext};
-use bevy_color::Color;
-use bevy_ecs::world::World;
-use bevy_pbr::{PbrBundle, StandardMaterial};
-use bevy_render::texture::Image;
-use bevy_scene::Scene;
-use bevy_utils::ConditionalSendFuture;
-use std::path::PathBuf;
+use bevy::asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, Handle, LoadContext};
+use bevy::color::Color;
+use bevy::ecs::world::World;
+use bevy::pbr::{PbrBundle, StandardMaterial};
+use bevy::render::texture::Image;
+use bevy::scene::Scene;
+use bevy::utils::ConditionalSendFuture;
 
 pub struct ObjLoader;
 
@@ -40,7 +39,7 @@ pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
     #[error("Failed to load materials for {0}: {1}")]
-    MaterialError(PathBuf, #[source] tobj::LoadError),
+    MaterialError(std::path::PathBuf, #[source] tobj::LoadError),
 }
 
 async fn load_obj_data<'a, 'b>(

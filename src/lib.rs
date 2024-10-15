@@ -5,8 +5,8 @@ pub mod scene;
 
 mod util;
 
-use bevy_app::{App, Plugin};
-use bevy_asset::AssetApp;
+use bevy::app::{App, Plugin};
+use bevy::asset::AssetApp;
 use serde::{Deserialize, Serialize};
 
 const EXTENSIONS: &[&str; 1] = &["obj"];
