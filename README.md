@@ -4,7 +4,7 @@
 
 Wavefront OBJ mesh asset loader plugin for the [Bevy engine](https://github.com/bevyengine/bevy).
 
-## Usage:
+## Usage
 
 Add the crate as a dependency:
 
@@ -29,7 +29,7 @@ fn main() {
 }
 ```
 
-Load the `.obj` file:
+Load an `.obj` file:
 
 ```rust
 fn example_startup_system(asset_server: Res<AssetServer>) {
