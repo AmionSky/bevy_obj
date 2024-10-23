@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.14.0"
+version = "0.15.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
@@ -15,12 +15,12 @@ thiserror = "1.0.0"
 tobj = "4.0.0"
 
 [dependencies.bevy]
-version = "0.14.0"
+version = "0.15.0-rc"
 default-features = false
 features = ["bevy_asset", "bevy_render"]
 
 [dev-dependencies.bevy]
-version = "0.14.0"
+version = "0.15.0-rc"
 default-features = true
 
 [features]

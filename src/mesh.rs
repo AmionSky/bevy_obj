@@ -1,5 +1,5 @@
 use crate::{util::MeshConverter, ObjSettings};
-use bevy::asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
+use bevy::asset::{io::Reader, AssetLoader, LoadContext};
 use bevy::render::mesh::Mesh;
 use bevy::utils::ConditionalSendFuture;
 
@@ -10,11 +10,11 @@ impl AssetLoader for ObjLoader {
     type Settings = ObjSettings;
     type Asset = Mesh;
 
-    fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader,
-        settings: &'a Self::Settings,
-        _load_context: &'a mut LoadContext,
+    fn load(
+        &self,
+        reader: &mut dyn Reader,
+        settings: &Self::Settings,
+        _: &mut LoadContext,
     ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();

@@ -12,8 +12,8 @@ Add the crate as a dependency:
 
 ```toml
 [dependencies]
-bevy = "0.14"
-bevy_obj = "0.14"
+bevy = "0.15"
+bevy_obj = "0.15"
 ```
 
 Add the plugin:
@@ -40,10 +40,8 @@ fn example_startup_system(asset_server: Res<AssetServer>) {
     let scene_handle = asset_server.load::<Scene>("example.obj");
 
     // Or let bevy infer the type
-    let model = PbrBundle {
-        mesh: asset_server.load("example.obj"),
-        ..default()
-    };
+    let mesh = Mesh3d(asset_server.load("example.obj"));
+    let scene = SceneRoot(asset_server.load("example.obj"));
 }
 ```
 
@@ -54,16 +52,13 @@ You can use `load_with_settings()` to modify some loader settings.
 ```rust
 fn example_startup_system(asset_server: Res<AssetServer>) {
     // Load the model with flat normals
-    let model = SceneBundle {
-        scene: asset_server.load_with_settings(
-            "example.obj",
-            |settings: &mut bevy_obj::ObjSettings| {
-                settings.force_compute_normals = true;
-                settings.prefer_flat_normals = true;
-            },
-        ),
-        ..default()
-    };
+    let scene = SceneRoot(asset_server.load_with_settings(
+        "example.obj",
+        |settings: &mut bevy_obj::ObjSettings| {
+            settings.force_compute_normals = true;
+            settings.prefer_flat_normals = true;
+        },
+    ));
 }
 ```
 

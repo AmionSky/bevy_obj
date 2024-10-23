@@ -1,10 +1,6 @@
 use crate::{util::MeshConverter, ObjSettings};
-use bevy::asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, Handle, LoadContext};
-use bevy::color::Color;
-use bevy::ecs::world::World;
-use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::render::texture::Image;
-use bevy::scene::Scene;
+use bevy::asset::{io::Reader, AssetLoader, AssetPath, LoadContext};
+use bevy::prelude::*;
 use bevy::utils::ConditionalSendFuture;
 
 pub struct ObjLoader;
@@ -14,11 +10,11 @@ impl AssetLoader for ObjLoader {
     type Settings = ObjSettings;
     type Asset = Scene;
 
-    fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader,
-        settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext,
+    fn load(
+        &self,
+        reader: &mut dyn Reader,
+        settings: &Self::Settings,
+        load_context: &mut LoadContext,
     ) -> impl ConditionalSendFuture<Output = Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
@@ -101,15 +97,16 @@ async fn load_obj_as_scene<'a, 'b>(
             MeshConverter::from(model).convert(settings),
         );
 
-        let pbr_bundle = PbrBundle {
-            mesh: mesh_handle,
-            material: material_id
-                .map(|id| mat_handles[id].clone())
-                .unwrap_or_default(),
-            ..Default::default()
-        };
+        let entity = (
+            Mesh3d(mesh_handle),
+            MeshMaterial3d(
+                material_id
+                    .map(|id| mat_handles[id].clone())
+                    .unwrap_or_default(),
+            ),
+        );
 
-        world.spawn(pbr_bundle);
+        world.spawn(entity);
     }
 
     Ok(Scene::new(world))
