@@ -7,7 +7,7 @@ repository = "https://github.com/AmionSky/bevy_obj"
 description = "Wavefront OBJ mesh asset loader plugin for the Bevy engine"
 keywords = ["bevy", "obj"]
 authors = ["Csányi István <icsanyi96@gmail.com>"]
-exclude = ["/assets"]
+exclude = ["/assets", "/examples"]
 
 [dependencies]
 serde = { version = "1.0.0", features = ["derive"] }
@@ -25,14 +25,9 @@ default-features = true
 
 [features]
 default = ["mesh", "scene"]
+# Support for loading OBJ file as a singular mesh
 mesh = []
+# Support for loading OBJ file as a scene with MTL materials
 scene = ["tobj/async", "bevy/bevy_scene", "bevy/bevy_pbr"]
+# Enable logging of the OBJ parser crate
 log = ["tobj/log"]
-
-[[example]]
-name = "cube"
-path = "example/cube.rs"
-
-[[example]]
-name = "viewer"
-path = "example/viewer.rs"
