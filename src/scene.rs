@@ -38,17 +38,21 @@ pub enum ObjError {
     MaterialError(std::path::PathBuf, #[source] tobj::LoadError),
 }
 
-async fn load_obj_data<'a, 'b>(
+async fn load_obj_data<'a>(
     mut bytes: &'a [u8],
-    load_context: &'a mut LoadContext<'b>,
+    load_context: &'a mut LoadContext<'_>,
 ) -> tobj::LoadResult {
-    tobj::load_obj_buf_async(&mut bytes, &tobj::GPU_LOAD_OPTIONS, |p| async {
+    tobj::futures::load_obj_buf(&mut bytes, &tobj::GPU_LOAD_OPTIONS, async |p| {
         use tobj::LoadError::OpenFileFailed;
         // We don't use the MTL material as an asset, just load the bytes of it.
         // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
         // Is this allowed?
         let mut ctx = load_context.begin_labeled_asset();
-        ctx.read_asset_bytes(resolve_path(&ctx, p).ok_or(OpenFileFailed)?)
+        let path = p
+            .to_str()
+            .and_then(|p| resolve_path(&ctx, p))
+            .ok_or(OpenFileFailed)?;
+        ctx.read_asset_bytes(path)
             .await
             .map_or(Err(OpenFileFailed), |bytes| {
                 tobj::load_mtl_buf(&mut bytes.as_slice())
@@ -65,9 +69,9 @@ fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'
     ctx.asset_path().parent()?.resolve(path.as_ref()).ok()
 }
 
-async fn load_obj_as_scene<'a, 'b>(
+async fn load_obj_as_scene<'a>(
     bytes: &'a [u8],
-    ctx: &'a mut LoadContext<'b>,
+    ctx: &'a mut LoadContext<'_>,
     settings: &'a ObjSettings,
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, ctx).await?;

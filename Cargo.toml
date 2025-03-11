@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.15.0"
+version = "0.15.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
@@ -12,7 +12,7 @@ exclude = ["/assets", "/examples"]
 [dependencies]
 serde = { version = "1.0.0", features = ["derive"] }
 thiserror = "1.0.0"
-tobj = "4.0.0"
+tobj = "4.0.3"
 
 [dependencies.bevy]
 version = "0.15.0-rc"
@@ -28,6 +28,6 @@ default = ["mesh", "scene"]
 # Support for loading OBJ file as a singular mesh
 mesh = []
 # Support for loading OBJ file as a scene with MTL materials
-scene = ["tobj/async", "bevy/bevy_scene", "bevy/bevy_pbr"]
+scene = ["tobj/futures", "bevy/bevy_scene", "bevy/bevy_pbr"]
 # Enable logging of the OBJ parser crate
 log = ["tobj/log"]
