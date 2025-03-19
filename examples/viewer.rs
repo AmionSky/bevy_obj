@@ -23,7 +23,7 @@ fn file_drop(
                 info!("Loading OBJ file: {:?}", path);
 
                 // Despawn old OBJ
-                if let Ok(scene) = query.get_single() {
+                if let Ok(scene) = query.single() {
                     commands.entity(scene).despawn();
                 }
 
@@ -98,7 +98,7 @@ fn input(
     mut scrolls: EventReader<MouseWheel>,
     mut query: Query<&mut ViewerCamera>,
 ) {
-    let mut camera = query.single_mut();
+    let mut camera = query.single_mut().unwrap();
 
     // Rotation
     if buttons.pressed(MouseButton::Left) {
@@ -126,7 +126,7 @@ fn input(
 }
 
 fn camera(mut query: Query<(&ViewerCamera, &mut Transform)>) {
-    let (camera, mut transform) = query.single_mut();
+    let (camera, mut transform) = query.single_mut().unwrap();
 
     let rotation = Quat::from_euler(EulerRot::YXZ, camera.yaw, camera.pitch, 0.0);
     let position = rotation.mul_vec3(Vec3::new(0.0, 0.0, camera.distance));
