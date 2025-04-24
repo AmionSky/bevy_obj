@@ -1,3 +1,4 @@
+use bevy::asset::UnapprovedPathMode;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy_obj::ObjPlugin;
@@ -5,7 +6,13 @@ use std::path::Path;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, ObjPlugin))
+        .add_plugins((
+            DefaultPlugins.set(AssetPlugin {
+                unapproved_path_mode: UnapprovedPathMode::Allow,
+                ..default()
+            }),
+            ObjPlugin,
+        ))
         .add_systems(Startup, setup)
         .add_systems(Update, (file_drop, (input, camera).chain()))
         .run();

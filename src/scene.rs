@@ -90,21 +90,16 @@ async fn load_obj_as_scene<'a>(
         if let Some(color) = mat.diffuse {
             material.base_color = Color::srgb(color[0], color[1], color[2]);
         }
-        mat_handles.push(
-            ctx.add_labeled_asset(format!("Material{mat_idx}"), material)
-                .unwrap(),
-        );
+        mat_handles.push(ctx.add_labeled_asset(format!("Material{mat_idx}"), material));
     }
 
     let mut world = World::default();
     for (model_idx, model) in models.into_iter().enumerate() {
         let material_id = model.mesh.material_id;
-        let mesh_handle = ctx
-            .add_labeled_asset(
-                format!("Mesh{model_idx}"),
-                MeshConverter::from(model).convert(settings),
-            )
-            .unwrap();
+        let mesh_handle = ctx.add_labeled_asset(
+            format!("Mesh{model_idx}"),
+            MeshConverter::from(model).convert(settings),
+        );
 
         let entity = (
             Mesh3d(mesh_handle),
