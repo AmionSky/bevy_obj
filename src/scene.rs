@@ -1,7 +1,7 @@
-use crate::{util::MeshConverter, ObjSettings};
-use bevy::asset::{io::Reader, AssetLoader, AssetPath, LoadContext};
+use crate::{ObjSettings, util::MeshConverter};
+use bevy::asset::{AssetLoader, AssetPath, LoadContext, io::Reader};
 use bevy::prelude::*;
-use bevy::utils::ConditionalSendFuture;
+use bevy::tasks::ConditionalSendFuture;
 
 pub struct ObjLoader;
 

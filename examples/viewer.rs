@@ -1,3 +1,4 @@
+use bevy::asset::UnapprovedPathMode;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy_obj::ObjPlugin;
@@ -5,7 +6,13 @@ use std::path::Path;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, ObjPlugin))
+        .add_plugins((
+            DefaultPlugins.set(AssetPlugin {
+                unapproved_path_mode: UnapprovedPathMode::Allow,
+                ..default()
+            }),
+            ObjPlugin,
+        ))
         .add_systems(Startup, setup)
         .add_systems(Update, (file_drop, (input, camera).chain()))
         .run();
@@ -23,7 +30,7 @@ fn file_drop(
                 info!("Loading OBJ file: {:?}", path);
 
                 // Despawn old OBJ
-                if let Ok(scene) = query.get_single() {
+                if let Ok(scene) = query.single() {
                     commands.entity(scene).despawn();
                 }
 
@@ -98,7 +105,7 @@ fn input(
     mut scrolls: EventReader<MouseWheel>,
     mut query: Query<&mut ViewerCamera>,
 ) {
-    let mut camera = query.single_mut();
+    let mut camera = query.single_mut().unwrap();
 
     // Rotation
     if buttons.pressed(MouseButton::Left) {
@@ -126,7 +133,7 @@ fn input(
 }
 
 fn camera(mut query: Query<(&ViewerCamera, &mut Transform)>) {
-    let (camera, mut transform) = query.single_mut();
+    let (camera, mut transform) = query.single_mut().unwrap();
 
     let rotation = Quat::from_euler(EulerRot::YXZ, camera.yaw, camera.pitch, 0.0);
     let position = rotation.mul_vec3(Vec3::new(0.0, 0.0, camera.distance));
