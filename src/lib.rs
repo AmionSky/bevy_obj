@@ -9,7 +9,7 @@ use bevy::app::{App, Plugin};
 use bevy::asset::AssetApp;
 use serde::{Deserialize, Serialize};
 
-const EXTENSIONS: &[&str; 1] = &["obj"];
+const EXTENSIONS: &[&str; 2] = &["obj", "OBJ"];
 
 /// Adds support for OBJ asset loading
 #[derive(Default)]
