@@ -21,7 +21,7 @@ fn main() {
 fn file_drop(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut events: EventReader<FileDragAndDrop>,
+    mut events: MessageReader<FileDragAndDrop>,
     query: Query<Entity, With<SceneRoot>>,
 ) {
     for event in events.read() {
@@ -35,7 +35,8 @@ fn file_drop(
                 }
 
                 // Spawn new OBJ
-                commands.spawn((SceneRoot(asset_server.load(path)), Transform::IDENTITY));
+                let scene = asset_server.load(path.to_path_buf());
+                commands.spawn((SceneRoot(scene), Transform::IDENTITY));
             } else {
                 warn!("Not an OBJ file: {:?}", path);
             }
@@ -54,10 +55,8 @@ fn drop_path(event: &FileDragAndDrop) -> Option<&Path> {
 }
 
 fn is_obj(path: &Path) -> bool {
-    if let Some(ext) = path.extension() {
-        if let Some(ext) = ext.to_str() {
-            return ext.to_lowercase() == "obj";
-        }
+    if let Some(ext) = path.extension().and_then(|ext| ext.to_str()) {
+        return ext.to_lowercase() == "obj";
     }
     false
 }
@@ -101,8 +100,8 @@ impl Default for ViewerCamera {
 
 fn input(
     buttons: Res<ButtonInput<MouseButton>>,
-    mut motions: EventReader<MouseMotion>,
-    mut scrolls: EventReader<MouseWheel>,
+    mut motions: MessageReader<MouseMotion>,
+    mut scrolls: MessageReader<MouseWheel>,
     mut query: Query<&mut ViewerCamera>,
 ) {
     let mut camera = query.single_mut().unwrap();
