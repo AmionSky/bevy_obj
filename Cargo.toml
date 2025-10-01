@@ -17,7 +17,7 @@ tobj = "4.0.3"
 [dependencies.bevy]
 version = "0.17.0"
 default-features = false
-features = ["bevy_asset", "bevy_render"]
+features = ["bevy_asset", "bevy_mesh"]
 
 [dev-dependencies.bevy]
 version = "0.17.0"
