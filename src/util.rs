@@ -1,6 +1,6 @@
 use crate::ObjSettings;
-use bevy::render::mesh::{Indices, Mesh, PrimitiveTopology};
-use bevy::render::render_asset::RenderAssetUsages;
+use bevy::asset::RenderAssetUsages;
+use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub(crate) struct MeshConverter {
     meshes: Vec<tobj::Mesh>,
