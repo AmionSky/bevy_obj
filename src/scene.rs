@@ -3,6 +3,7 @@ use bevy::asset::{AssetLoader, AssetPath, LoadContext, io::Reader};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 
+#[derive(Default)]
 pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
