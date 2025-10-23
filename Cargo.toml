@@ -24,7 +24,7 @@ version = "0.17.0"
 default-features = true
 
 [features]
-default = ["mesh", "scene"]
+default = ["mesh", "scene", "merging", "reordering"]
 # Support for loading OBJ file as a singular mesh
 mesh = []
 # Support for loading OBJ file as a scene with MTL materials

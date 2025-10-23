@@ -57,6 +57,7 @@ fn example_startup_system(asset_server: Res<AssetServer>) {
         |settings: &mut bevy_obj::ObjSettings| {
             settings.force_compute_normals = true;
             settings.prefer_flat_normals = true;
+            settings.load_options.single_index = false;
         },
     ));
 }

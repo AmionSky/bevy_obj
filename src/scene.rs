@@ -42,8 +42,9 @@ pub enum ObjError {
 async fn load_obj_data<'a>(
     mut bytes: &'a [u8],
     load_context: &'a mut LoadContext<'_>,
+    settings: &'a ObjSettings,
 ) -> tobj::LoadResult {
-    tobj::futures::load_obj_buf(&mut bytes, &tobj::GPU_LOAD_OPTIONS, async |p| {
+    tobj::futures::load_obj_buf(&mut bytes, &settings.load_options, async |p| {
         use tobj::LoadError::OpenFileFailed;
         // We don't use the MTL material as an asset, just load the bytes of it.
         // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
@@ -75,7 +76,7 @@ async fn load_obj_as_scene<'a>(
     ctx: &'a mut LoadContext<'_>,
     settings: &'a ObjSettings,
 ) -> Result<Scene, ObjError> {
-    let (models, materials) = load_obj_data(bytes, ctx).await?;
+    let (models, materials) = load_obj_data(bytes, ctx, settings).await?;
     let materials = materials.map_err(|err| {
         let obj_path = ctx.path().to_path_buf();
         ObjError::MaterialError(obj_path, err)

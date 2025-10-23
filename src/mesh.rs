@@ -2,6 +2,7 @@ use crate::{ObjSettings, util::MeshConverter};
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::mesh::Mesh;
 use bevy::tasks::ConditionalSendFuture;
+use bevy::utils::default;
 
 #[derive(Default)]
 pub struct ObjLoader;
@@ -38,7 +39,7 @@ pub enum ObjError {
 }
 
 pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
-    let obj = tobj::load_obj_buf(&mut bytes, &tobj::GPU_LOAD_OPTIONS, |_| {
+    let obj = tobj::load_obj_buf(&mut bytes, &settings.load_options, |_| {
         Err(tobj::LoadError::GenericFailure)
     })?;
 
