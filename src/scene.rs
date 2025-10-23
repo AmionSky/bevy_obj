@@ -1,14 +1,29 @@
+use std::marker::PhantomData;
+
 use crate::{ObjSettings, util::MeshConverter};
 use bevy::asset::{AssetLoader, AssetPath, LoadContext, io::Reader};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 
 #[derive(Default)]
-pub struct ObjLoader;
+pub struct SceneObjLoader;
 
-impl AssetLoader for ObjLoader {
+type SceneObjSettings = ObjSettings<SceneObjLoader>;
+
+impl Default for SceneObjSettings {
+    fn default() -> Self {
+        Self {
+            loader: PhantomData,
+            force_compute_normals: Default::default(),
+            prefer_flat_normals: Default::default(),
+            load_options: tobj::GPU_LOAD_OPTIONS,
+        }
+    }
+}
+
+impl AssetLoader for SceneObjLoader {
     type Error = ObjError;
-    type Settings = ObjSettings;
+    type Settings = SceneObjSettings;
     type Asset = Scene;
 
     fn load(
@@ -42,7 +57,7 @@ pub enum ObjError {
 async fn load_obj_data<'a>(
     mut bytes: &'a [u8],
     load_context: &'a mut LoadContext<'_>,
-    settings: &'a ObjSettings,
+    settings: &'a SceneObjSettings,
 ) -> tobj::LoadResult {
     tobj::futures::load_obj_buf(&mut bytes, &settings.load_options, async |p| {
         use tobj::LoadError::OpenFileFailed;
@@ -74,7 +89,7 @@ fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'
 async fn load_obj_as_scene<'a>(
     bytes: &'a [u8],
     ctx: &'a mut LoadContext<'_>,
-    settings: &'a ObjSettings,
+    settings: &'a SceneObjSettings,
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, ctx, settings).await?;
     let materials = materials.map_err(|err| {

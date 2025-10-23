@@ -7,7 +7,7 @@ pub(crate) struct MeshConverter {
 }
 
 impl MeshConverter {
-    pub fn convert(&self, settings: &ObjSettings) -> Mesh {
+    pub fn convert<T>(&self, settings: &ObjSettings<T>) -> Mesh {
         let mut mesh = Mesh::new(
             PrimitiveTopology::TriangleList,
             RenderAssetUsages::default(),

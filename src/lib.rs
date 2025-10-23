@@ -5,6 +5,8 @@ pub mod scene;
 
 mod util;
 
+use std::marker::PhantomData;
+
 use bevy::app::{App, Plugin};
 use bevy::asset::AssetApp;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -18,33 +20,21 @@ pub struct ObjPlugin;
 impl Plugin for ObjPlugin {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "mesh")]
-        app.init_asset_loader::<mesh::ObjLoader>();
+        app.init_asset_loader::<mesh::MeshObjLoader>();
         #[cfg(feature = "scene")]
-        app.init_asset_loader::<scene::ObjLoader>();
+        app.init_asset_loader::<scene::SceneObjLoader>();
     }
 }
 
 /// OBJ asset loader settings
-pub struct ObjSettings {
+pub struct ObjSettings<Loader> {
+    loader: PhantomData<Loader>,
     /// Force compute the normals even if the mesh contains normals
     pub force_compute_normals: bool,
     /// Prefer flat normals over smooth normals when computing them
     pub prefer_flat_normals: bool,
     /// load options for asset loader
     pub load_options: tobj::LoadOptions,
-}
-
-impl Default for ObjSettings {
-    fn default() -> Self {
-        Self {
-            force_compute_normals: Default::default(),
-            prefer_flat_normals: Default::default(),
-            #[cfg(feature = "mesh")]
-            load_options: tobj::OFFLINE_RENDERING_LOAD_OPTIONS,
-            #[cfg(feature = "scene")]
-            load_options: tobj::GPU_LOAD_OPTIONS,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -98,8 +88,8 @@ struct SerializableObjSettings {
     pub load_options: LoadOptionsDef,
 }
 
-impl From<&ObjSettings> for SerializableObjSettings {
-    fn from(s: &ObjSettings) -> SerializableObjSettings {
+impl<Loader> From<&ObjSettings<Loader>> for SerializableObjSettings {
+    fn from(s: &ObjSettings<Loader>) -> SerializableObjSettings {
         SerializableObjSettings {
             force_compute_normals: s.force_compute_normals,
             prefer_flat_normals: s.prefer_flat_normals,
@@ -108,9 +98,10 @@ impl From<&ObjSettings> for SerializableObjSettings {
     }
 }
 
-impl From<SerializableObjSettings> for ObjSettings {
-    fn from(s: SerializableObjSettings) -> ObjSettings {
-        ObjSettings {
+impl<Loader> From<SerializableObjSettings> for ObjSettings<Loader> {
+    fn from(s: SerializableObjSettings) -> ObjSettings<Loader> {
+        ObjSettings::<Loader> {
+            loader: PhantomData,
             force_compute_normals: s.force_compute_normals,
             prefer_flat_normals: s.prefer_flat_normals,
             load_options: tobj::LoadOptions::from(s.load_options),
@@ -118,7 +109,7 @@ impl From<SerializableObjSettings> for ObjSettings {
     }
 }
 
-impl Serialize for ObjSettings {
+impl<Loader> Serialize for ObjSettings<Loader> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -127,7 +118,7 @@ impl Serialize for ObjSettings {
     }
 }
 
-impl<'de> Deserialize<'de> for ObjSettings {
+impl<'de, Loader> Deserialize<'de> for ObjSettings<Loader> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,

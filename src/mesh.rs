@@ -1,15 +1,29 @@
-use crate::{ObjSettings, util::MeshConverter};
+use crate::ObjSettings;
+use crate::util::MeshConverter;
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::mesh::Mesh;
 use bevy::tasks::ConditionalSendFuture;
-use bevy::utils::default;
+use std::marker::PhantomData;
 
 #[derive(Default)]
-pub struct ObjLoader;
+pub struct MeshObjLoader;
 
-impl AssetLoader for ObjLoader {
+type MeshObjSettings = ObjSettings<MeshObjLoader>;
+
+impl Default for MeshObjSettings {
+    fn default() -> Self {
+        Self {
+            loader: PhantomData,
+            force_compute_normals: Default::default(),
+            prefer_flat_normals: Default::default(),
+            load_options: tobj::OFFLINE_RENDERING_LOAD_OPTIONS,
+        }
+    }
+}
+
+impl AssetLoader for MeshObjLoader {
     type Error = ObjError;
-    type Settings = ObjSettings;
+    type Settings = MeshObjSettings;
     type Asset = Mesh;
 
     fn load(
@@ -38,7 +52,7 @@ pub enum ObjError {
     InvalidFile(#[from] tobj::LoadError),
 }
 
-pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
+pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &MeshObjSettings) -> Result<Mesh, ObjError> {
     let obj = tobj::load_obj_buf(&mut bytes, &settings.load_options, |_| {
         Err(tobj::LoadError::GenericFailure)
     })?;
