@@ -8,7 +8,7 @@ use bevy::tasks::ConditionalSendFuture;
 #[derive(Default)]
 pub struct SceneObjLoader;
 
-type SceneObjSettings = ObjSettings<SceneObjLoader>;
+pub type SceneObjSettings = ObjSettings<SceneObjLoader>;
 
 impl Default for SceneObjSettings {
     fn default() -> Self {

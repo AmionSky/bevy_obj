@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 #[derive(Default)]
 pub struct MeshObjLoader;
 
-type MeshObjSettings = ObjSettings<MeshObjLoader>;
+pub type MeshObjSettings = ObjSettings<MeshObjLoader>;
 
 impl Default for MeshObjSettings {
     fn default() -> Self {
