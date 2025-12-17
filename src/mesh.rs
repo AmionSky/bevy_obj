@@ -1,9 +1,10 @@
 use crate::{ObjSettings, util::MeshConverter};
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::mesh::Mesh;
+use bevy::reflect::TypePath;
 use bevy::tasks::ConditionalSendFuture;
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
