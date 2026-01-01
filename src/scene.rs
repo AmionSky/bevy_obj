@@ -63,13 +63,47 @@ async fn load_obj_data<'a>(
 }
 
 fn load_texture(texture: &String, ctx: &mut LoadContext) -> Option<Handle<Image>> {
-    // MTL files can have options before the texture filename (e.g., "-bm 1.0 texture.png")
-    // We need to extract just the filename by taking the last token
-    let cleaned_texture = texture
-        .split_whitespace()
-        .last()
-        .unwrap_or(texture.as_str());
-    Some(ctx.load(resolve_path(ctx, cleaned_texture)?))
+    // Parse MTL texture options and extract the filename
+    // MTL format allows options before the filename (e.g., "-bm 1.0 texture.png")
+    // Strategy: Skip all tokens starting with '-' and their associated values (numbers or on/off)
+    // The filename is everything that remains after all options are consumed
+    let mut tokens = texture.split_whitespace().peekable();
+    
+    while let Some(token) = tokens.peek() {
+        if token.starts_with('-') {
+            tokens.next(); // consume the option flag
+            
+            // Skip any following tokens that look like option values
+            // (numbers, "on", "off", or single characters for -imfchan)
+            while let Some(next_token) = tokens.peek() {
+                if next_token.starts_with('-') {
+                    // Next option found, stop consuming values
+                    break;
+                }
+                
+                // Check if this looks like an option value
+                let is_number = next_token.parse::<f32>().is_ok();
+                let is_boolean = *next_token == "on" || *next_token == "off";
+                let is_single_char = next_token.len() == 1;
+                
+                if is_number || is_boolean || is_single_char {
+                    tokens.next(); // consume the value
+                } else {
+                    // Doesn't look like an option value, must be start of filename
+                    break;
+                }
+            }
+        } else {
+            // Not an option, must be the filename
+            break;
+        }
+    }
+    
+    // Remaining tokens form the filename (which may contain spaces)
+    let filename: String = tokens.collect::<Vec<_>>().join(" ");
+    let final_texture = if filename.is_empty() { texture.as_str() } else { &filename };
+    
+    Some(ctx.load(resolve_path(ctx, final_texture)?))
 }
 
 fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'static>> {
