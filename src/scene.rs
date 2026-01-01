@@ -63,7 +63,13 @@ async fn load_obj_data<'a>(
 }
 
 fn load_texture(texture: &String, ctx: &mut LoadContext) -> Option<Handle<Image>> {
-    Some(ctx.load(resolve_path(ctx, texture)?))
+    // MTL files can have options before the texture filename (e.g., "-bm 1.0 texture.png")
+    // We need to extract just the filename by taking the last token
+    let cleaned_texture = texture
+        .split_whitespace()
+        .last()
+        .unwrap_or(texture.as_str());
+    Some(ctx.load(resolve_path(ctx, cleaned_texture)?))
 }
 
 fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'static>> {
