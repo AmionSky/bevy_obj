@@ -3,7 +3,7 @@ use bevy::asset::{AssetLoader, AssetPath, LoadContext, io::Reader};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct ObjLoader;
 
 impl AssetLoader for ObjLoader {
@@ -36,7 +36,7 @@ pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
     TobjError(#[from] tobj::LoadError),
     #[error("Failed to load materials for {0}: {1}")]
-    MaterialError(std::path::PathBuf, #[source] tobj::LoadError),
+    MaterialError(AssetPath<'static>, #[source] tobj::LoadError),
 }
 
 async fn load_obj_data<'a>(
@@ -67,7 +67,7 @@ fn load_texture(texture: &String, ctx: &mut LoadContext) -> Option<Handle<Image>
 }
 
 fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'static>> {
-    ctx.asset_path().parent()?.resolve(path.as_ref()).ok()
+    ctx.path().parent()?.resolve(path.as_ref()).ok()
 }
 
 async fn load_obj_as_scene<'a>(
@@ -77,7 +77,7 @@ async fn load_obj_as_scene<'a>(
 ) -> Result<Scene, ObjError> {
     let (models, materials) = load_obj_data(bytes, ctx).await?;
     let materials = materials.map_err(|err| {
-        let obj_path = ctx.path().to_path_buf();
+        let obj_path = ctx.path().clone_owned();
         ObjError::MaterialError(obj_path, err)
     })?;
 

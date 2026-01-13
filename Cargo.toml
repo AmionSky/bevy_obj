@@ -1,12 +1,11 @@
 [package]
 name = "bevy_obj"
-version = "0.17.1"
+version = "0.18.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
 description = "Wavefront OBJ mesh asset loader plugin for the Bevy engine"
 keywords = ["bevy", "obj"]
-authors = ["Csányi István <icsanyi96@gmail.com>"]
 exclude = ["/assets", "/examples"]
 
 [dependencies]
@@ -15,12 +14,12 @@ thiserror = "2.0.0"
 tobj = "4.0.3"
 
 [dependencies.bevy]
-version = "0.17.0"
+version = "0.18.0"
 default-features = false
 features = ["bevy_asset", "bevy_mesh"]
 
 [dev-dependencies.bevy]
-version = "0.17.0"
+version = "0.18.0"
 default-features = true
 
 [features]
