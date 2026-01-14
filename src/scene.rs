@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{ObjSettings, util::MeshConverter};
+use crate::ObjSettings;
 use bevy::asset::AssetPath;
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::platform::collections::{HashMap, HashSet};
@@ -41,36 +41,9 @@ pub enum ObjError {
     ParseError(#[from] wobj::WobjError),
     #[error("Asset read error: {0}")]
     AssetError(#[from] bevy::asset::ReadAssetBytesError),
-
     #[error("Material not found")]
     MatNotFound,
-    // #[error("Failed to load materials for {0}: {1}")]
-    // MaterialError(AssetPath<'static>, #[source] tobj::LoadError),
 }
-/*
-async fn load_obj_data<'a>(
-    mut bytes: &'a [u8],
-    load_context: &'a mut LoadContext<'_>,
-) -> tobj::LoadResult {
-    tobj::futures::load_obj_buf(&mut bytes, &tobj::GPU_LOAD_OPTIONS, async |p| {
-        use tobj::LoadError::OpenFileFailed;
-        // We don't use the MTL material as an asset, just load the bytes of it.
-        // But we are unable to call ctx.finish() and feed the result back. (which is no new asset)
-        // Is this allowed?
-        let mut ctx = load_context.begin_labeled_asset();
-        let path = p
-            .to_str()
-            .and_then(|p| resolve_path(&ctx, p))
-            .ok_or(OpenFileFailed)?;
-        ctx.read_asset_bytes(path)
-            .await
-            .map_or(Err(OpenFileFailed), |bytes| {
-                tobj::load_mtl_buf(&mut bytes.as_slice())
-            })
-    })
-    .await
-}
-*/
 
 fn resolve_path<P: AsRef<Path>>(ctx: &LoadContext, path: P) -> AssetPath<'static> {
     if let Some(parent) = ctx.path().parent() {
@@ -80,54 +53,69 @@ fn resolve_path<P: AsRef<Path>>(ctx: &LoadContext, path: P) -> AssetPath<'static
     }
 }
 
+struct MtlCache {
+    cache: HashMap<PathBuf, wobj::Mtl>,
+}
+
+impl MtlCache {
+    pub fn new() -> Self {
+        Self {
+            cache: HashMap::with_capacity(1),
+        }
+    }
+
+    pub async fn load(
+        &mut self,
+        ctx: &mut LoadContext<'_>,
+        path: &PathBuf,
+        name: &str,
+    ) -> Result<&wobj::Material, ObjError> {
+        if !self.cache.contains_key(path) {
+            let asset_path = resolve_path(ctx, path);
+            let bytes = ctx.read_asset_bytes(asset_path).await?;
+            let mtl = wobj::Mtl::parse(&bytes)?;
+            self.cache.insert(path.clone(), mtl);
+        }
+
+        self.cache
+            .get(path)
+            .and_then(|mtl| mtl.get(name))
+            .ok_or(ObjError::MatNotFound)
+    }
+}
+
 async fn load_materials(
     ctx: &mut LoadContext<'_>,
     materials: HashSet<Option<(PathBuf, String)>>,
 ) -> Result<HashMap<Option<(PathBuf, String)>, Handle<StandardMaterial>>, ObjError> {
-    let mut material_handles = HashMap::new();
-    let mut mtl_libs = HashMap::new();
+    let mut handles = HashMap::new();
+    let mut mtls = MtlCache::new();
 
     for (i, mat_key) in materials.into_iter().enumerate() {
-        material_handles.insert(
-            mat_key.clone(),
-            if let Some((path, name)) = mat_key {
-                let mtl_mat =
-                    get_or_load_mtl(ctx, &mut mtl_libs, path.to_path_buf(), &name).await?;
-                let mat = convert_material(ctx, mtl_mat);
-                ctx.add_labeled_asset(format!("Material.{i}.{name}"), mat)
-            } else {
-                ctx.add_labeled_asset("Material.Default".to_string(), StandardMaterial::default())
-            },
-        );
+        let handle = if let Some((path, name)) = &mat_key {
+            let mtl_mat = mtls.load(ctx, path, name).await?;
+            let material = convert_material(ctx, mtl_mat);
+            let label = {
+                let mut label = format!("Material.{name}");
+                if ctx.has_labeled_asset(&label) {
+                    label = format!("Material.{i}.{name}");
+                }
+                label
+            };
+
+            ctx.add_labeled_asset(label, material)
+        } else {
+            ctx.add_labeled_asset("Material.Default".to_string(), StandardMaterial::default())
+        };
+
+        handles.insert(mat_key, handle);
     }
 
-    Ok(material_handles)
+    Ok(handles)
 }
 
-async fn get_or_load_mtl<'m>(
-    ctx: &mut LoadContext<'_>,
-    mtl_libs: &'m mut HashMap<PathBuf, wobj::Mtl>,
-    path: PathBuf,
-    name: &str,
-) -> Result<&'m wobj::Material, ObjError> {
-    if !mtl_libs.contains_key(&path) {
-        let asset_path = resolve_path(ctx, &path);
-        let bytes = ctx.read_asset_bytes(asset_path).await?;
-        let mtl = wobj::Mtl::parse(&bytes)?;
-        mtl_libs.insert(path.clone(), mtl);
-    }
-
-    if let Some(mtl) = mtl_libs.get(&path)
-        && let Some(material) = mtl.get(name)
-    {
-        Ok(material)
-    } else {
-        Err(ObjError::MatNotFound)
-    }
-}
-
-fn load_texture<P: AsRef<Path>>(ctx: &mut LoadContext, texture: P) -> Option<Handle<Image>> {
-    Some(ctx.load(resolve_path(ctx, texture)))
+fn load_texture(ctx: &mut LoadContext, path: &PathBuf) -> Handle<Image> {
+    ctx.load(resolve_path(ctx, path))
 }
 
 fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> StandardMaterial {
@@ -154,30 +142,24 @@ fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> Sta
         }
     }
 
-    if let Some(v) = &material.roughness {
-        m.perceptual_roughness = *v;
-    }
-    if let Some(v) = &material.metallic {
-        m.metallic = *v;
-    }
-    if let Some(v) = &material.cc_thickness {
-        m.clearcoat = *v;
-    }
-    if let Some(v) = &material.cc_roughness {
-        m.clearcoat_perceptual_roughness = *v;
-    }
-    if let Some(v) = &material.anisotropy {
-        m.anisotropy_strength = *v;
-    }
-    if let Some(v) = &material.anisotropy_rotation {
-        m.anisotropy_rotation = *v;
+    fn apply_f32(input: Option<f32>, target: &mut f32) {
+        *target = input.unwrap_or(*target)
     }
 
+    apply_f32(material.roughness, &mut m.perceptual_roughness);
+    apply_f32(material.metallic, &mut m.metallic);
+    apply_f32(material.cc_thickness, &mut m.clearcoat);
+    apply_f32(material.cc_roughness, &mut m.clearcoat_perceptual_roughness);
+    apply_f32(material.anisotropy, &mut m.anisotropy_strength);
+    apply_f32(material.anisotropy_rotation, &mut m.anisotropy_rotation);
+
     if let Some(map) = &material.diffuse_map {
-        m.base_color_texture = load_texture(ctx, map.path())
+        m.base_color_texture = Some(load_texture(ctx, map.path()))
     }
+
+    // Treat both normal and bump map as normal map texture
     if let Some(map) = material.normal_map.as_ref().or(material.bump_map.as_ref()) {
-        m.normal_map_texture = load_texture(ctx, map.path())
+        m.normal_map_texture = Some(load_texture(ctx, map.path()))
     }
 
     // Enable alpha blend if the material has a dissolve map
@@ -199,17 +181,13 @@ async fn load_obj_as_scene<'a>(
     let mut meshes = Vec::new();
 
     for obj_mesh in obj.meshes() {
-        let material = if let Some(mat_lib) = obj_mesh.mtllib()
-            && let Some(mat_name) = obj_mesh.material()
-        {
-            Some((mat_lib.to_path_buf(), mat_name.to_string()))
-        } else {
-            None
-        };
+        let material = obj_mesh
+            .mtllib()
+            .map(PathBuf::from)
+            .zip(obj_mesh.material().map(String::from));
+        materials.insert(material.clone());
 
         let (indicies, vertices) = obj_mesh.triangulate();
-
-        materials.insert(material.clone());
         meshes.push((indicies, vertices, material));
     }
 
@@ -219,15 +197,13 @@ async fn load_obj_as_scene<'a>(
     for (i, (indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
         let mesh_handle = ctx.add_labeled_asset(
             format!("Mesh.{i}"),
-            MeshConverter::new(indicies, verticies).convert(settings),
+            crate::util::to_bevy_mesh(indicies, verticies, settings),
         );
 
         let entity = (
             Mesh3d(mesh_handle),
             MeshMaterial3d(mat_handles.get(&mat_key).unwrap().clone()),
         );
-
-        println!("Adding: {:#?}", entity);
 
         world.spawn(entity);
     }
