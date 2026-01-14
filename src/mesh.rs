@@ -35,7 +35,7 @@ pub enum ObjError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
-    InvalidFile(#[from] tobj::LoadError),
+    InvalidFile(#[from] wobj::WobjError),
 }
 
 pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {

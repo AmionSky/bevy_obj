@@ -3,7 +3,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub(crate) struct MeshConverter {
-    meshes: Vec<tobj::Mesh>,
+    indicies: wobj::Indicies,
+    verticies: wobj::Vertices,
 }
 
 impl MeshConverter {
@@ -32,81 +33,39 @@ impl MeshConverter {
         mesh
     }
 
-    fn new(meshes: Vec<tobj::Mesh>) -> Self {
-        Self { meshes }
+    pub fn new(indicies: wobj::Indicies, verticies: wobj::Vertices) -> Self {
+        Self { indicies, verticies }
     }
 
     fn indices(&self) -> Vec<u32> {
-        let count = self.meshes.iter().map(|m| m.indices.len()).sum();
-        let mut data = Vec::with_capacity(count);
-        let mut offset = 0;
-
-        for mesh in &self.meshes {
-            data.extend(mesh.indices.iter().map(|i| i + offset));
-            offset += (mesh.positions.len() / 3) as u32;
-        }
-
-        data
+        self.indicies.0.iter().map(|i| *i as u32).collect()
     }
 
     fn position(&self) -> Vec<[f32; 3]> {
-        let count = self.meshes.iter().map(|m| m.positions.len() / 3).sum();
-        let mut data = Vec::with_capacity(count);
-
-        for mesh in &self.meshes {
-            data.append(&mut convert_vec3(&mesh.positions));
-        }
-
-        data
+        self.verticies.positions.clone()
     }
 
     fn has_normal(&self) -> bool {
-        !self.meshes.iter().any(|m| m.normals.is_empty())
+        self.verticies.normals.is_some()
     }
 
     fn normal(&self) -> Vec<[f32; 3]> {
-        let count = self.meshes.iter().map(|m| m.normals.len() / 3).sum();
-        let mut data = Vec::with_capacity(count);
-
-        for mesh in &self.meshes {
-            data.append(&mut convert_vec3(&mesh.normals));
+        if let Some(normals) = &self.verticies.normals {
+            normals.clone()
+        } else {
+            Vec::new()
         }
-
-        data
     }
 
     fn has_uv(&self) -> bool {
-        !self.meshes.iter().any(|m| m.texcoords.is_empty())
+        self.verticies.uvs.is_some()
     }
 
     fn uv(&self) -> Vec<[f32; 2]> {
-        let count = self.meshes.iter().map(|m| m.texcoords.len() / 2).sum();
-        let mut data = Vec::with_capacity(count);
-
-        for mesh in &self.meshes {
-            data.append(&mut convert_uv(&mesh.texcoords));
+        if let Some(uvs) = &self.verticies.uvs {
+            uvs.iter().map(|uv| [uv[0], 1.0 - uv[1]]).collect()
+        } else {
+            Vec::new()
         }
-
-        data
     }
-}
-
-impl From<tobj::Model> for MeshConverter {
-    fn from(value: tobj::Model) -> Self {
-        Self::new(vec![value.mesh])
-    }
-}
-
-impl From<Vec<tobj::Model>> for MeshConverter {
-    fn from(value: Vec<tobj::Model>) -> Self {
-        Self::new(value.into_iter().map(|v| v.mesh).collect())
-    }
-}
-
-fn convert_vec3(vec: &[f32]) -> Vec<[f32; 3]> {
-    vec.chunks_exact(3).map(|v| [v[0], v[1], v[2]]).collect()
-}
-
-fn convert_uv(uv: &[f32]) -> Vec<[f32; 2]> {
-    uv.chunks_exact(2).map(|t| [t[0], 1.0 - t[1]]).collect()
 }

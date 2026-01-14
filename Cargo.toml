@@ -11,7 +11,7 @@ exclude = ["/assets", "/examples"]
 [dependencies]
 serde = { version = "1.0.0", features = ["derive"] }
 thiserror = "2.0.0"
-tobj = "4.0.3"
+wobj.path = "../wobj"
 
 [dependencies.bevy]
 version = "0.18.0"
@@ -23,10 +23,8 @@ version = "0.18.0"
 default-features = true
 
 [features]
-default = ["mesh", "scene"]
+default = ["scene"]
 # Support for loading OBJ file as a singular mesh
 mesh = []
 # Support for loading OBJ file as a scene with MTL materials
-scene = ["tobj/futures", "bevy/bevy_scene", "bevy/bevy_pbr"]
-# Enable logging of the OBJ parser crate
-log = ["tobj/log"]
+scene = ["bevy/bevy_scene", "bevy/bevy_pbr"]

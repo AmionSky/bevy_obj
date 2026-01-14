@@ -1,5 +1,9 @@
+use std::path::{Path, PathBuf};
+
 use crate::{ObjSettings, util::MeshConverter};
-use bevy::asset::{AssetLoader, AssetPath, LoadContext, io::Reader};
+use bevy::asset::AssetPath;
+use bevy::asset::{AssetLoader, LoadContext, io::Reader};
+use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 
@@ -34,11 +38,16 @@ pub enum ObjError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
-    TobjError(#[from] tobj::LoadError),
-    #[error("Failed to load materials for {0}: {1}")]
-    MaterialError(AssetPath<'static>, #[source] tobj::LoadError),
-}
+    ParseError(#[from] wobj::WobjError),
+    #[error("Asset read error: {0}")]
+    AssetError(#[from] bevy::asset::ReadAssetBytesError),
 
+    #[error("Material not found")]
+    MatNotFound,
+    // #[error("Failed to load materials for {0}: {1}")]
+    // MaterialError(AssetPath<'static>, #[source] tobj::LoadError),
+}
+/*
 async fn load_obj_data<'a>(
     mut bytes: &'a [u8],
     load_context: &'a mut LoadContext<'_>,
@@ -61,13 +70,122 @@ async fn load_obj_data<'a>(
     })
     .await
 }
+*/
 
-fn load_texture(texture: &String, ctx: &mut LoadContext) -> Option<Handle<Image>> {
-    Some(ctx.load(resolve_path(ctx, texture)?))
+fn resolve_path<P: AsRef<Path>>(ctx: &LoadContext, path: P) -> AssetPath<'static> {
+    if let Some(parent) = ctx.path().parent() {
+        parent.path().join(path).into()
+    } else {
+        path.as_ref().to_path_buf().into()
+    }
 }
 
-fn resolve_path<P: AsRef<str>>(ctx: &LoadContext, path: P) -> Option<AssetPath<'static>> {
-    ctx.path().parent()?.resolve(path.as_ref()).ok()
+async fn load_materials(
+    ctx: &mut LoadContext<'_>,
+    materials: HashSet<Option<(PathBuf, String)>>,
+) -> Result<HashMap<Option<(PathBuf, String)>, Handle<StandardMaterial>>, ObjError> {
+    let mut material_handles = HashMap::new();
+    let mut mtl_libs = HashMap::new();
+
+    for (i, mat_key) in materials.into_iter().enumerate() {
+        material_handles.insert(
+            mat_key.clone(),
+            if let Some((path, name)) = mat_key {
+                let mtl_mat =
+                    get_or_load_mtl(ctx, &mut mtl_libs, path.to_path_buf(), &name).await?;
+                let mat = convert_material(ctx, mtl_mat);
+                ctx.add_labeled_asset(format!("Material.{i}.{name}"), mat)
+            } else {
+                ctx.add_labeled_asset("Material.Default".to_string(), StandardMaterial::default())
+            },
+        );
+    }
+
+    Ok(material_handles)
+}
+
+async fn get_or_load_mtl<'m>(
+    ctx: &mut LoadContext<'_>,
+    mtl_libs: &'m mut HashMap<PathBuf, wobj::Mtl>,
+    path: PathBuf,
+    name: &str,
+) -> Result<&'m wobj::Material, ObjError> {
+    if !mtl_libs.contains_key(&path) {
+        let asset_path = resolve_path(ctx, &path);
+        let bytes = ctx.read_asset_bytes(asset_path).await?;
+        let mtl = wobj::Mtl::parse(&bytes)?;
+        mtl_libs.insert(path.clone(), mtl);
+    }
+
+    if let Some(mtl) = mtl_libs.get(&path)
+        && let Some(material) = mtl.get(name)
+    {
+        Ok(material)
+    } else {
+        Err(ObjError::MatNotFound)
+    }
+}
+
+fn load_texture<P: AsRef<Path>>(ctx: &mut LoadContext, texture: P) -> Option<Handle<Image>> {
+    Some(ctx.load(resolve_path(ctx, texture)))
+}
+
+fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> StandardMaterial {
+    let mut m = StandardMaterial::default();
+    if let Some(v) = &material.diffuse {
+        match *v {
+            wobj::ColorValue::RGB(r, g, b) => m.base_color = Color::srgb(r, g, b),
+            wobj::ColorValue::XYZ(x, y, z) => m.base_color = Color::xyz(x, y, z),
+            _ => (),
+        }
+    }
+    if let Some(v) = &material.specular {
+        match *v {
+            wobj::ColorValue::RGB(r, g, b) => m.specular_tint = Color::srgb(r, g, b),
+            wobj::ColorValue::XYZ(x, y, z) => m.specular_tint = Color::xyz(x, y, z),
+            _ => (),
+        }
+    }
+    if let Some(v) = &material.emissive {
+        match *v {
+            wobj::ColorValue::RGB(r, g, b) => m.emissive = LinearRgba::rgb(r, g, b),
+            wobj::ColorValue::XYZ(x, y, z) => m.emissive = Color::xyz(x, y, z).into(),
+            _ => (),
+        }
+    }
+
+    if let Some(v) = &material.roughness {
+        m.perceptual_roughness = *v;
+    }
+    if let Some(v) = &material.metallic {
+        m.metallic = *v;
+    }
+    if let Some(v) = &material.cc_thickness {
+        m.clearcoat = *v;
+    }
+    if let Some(v) = &material.cc_roughness {
+        m.clearcoat_perceptual_roughness = *v;
+    }
+    if let Some(v) = &material.anisotropy {
+        m.anisotropy_strength = *v;
+    }
+    if let Some(v) = &material.anisotropy_rotation {
+        m.anisotropy_rotation = *v;
+    }
+
+    if let Some(map) = &material.diffuse_map {
+        m.base_color_texture = load_texture(ctx, map.path())
+    }
+    if let Some(map) = material.normal_map.as_ref().or(material.bump_map.as_ref()) {
+        m.normal_map_texture = load_texture(ctx, map.path())
+    }
+
+    // Enable alpha blend if the material has a dissolve map
+    if material.dissolve_map.is_some() {
+        m.alpha_mode = AlphaMode::Blend
+    }
+
+    m
 }
 
 async fn load_obj_as_scene<'a>(
@@ -75,41 +193,41 @@ async fn load_obj_as_scene<'a>(
     ctx: &'a mut LoadContext<'_>,
     settings: &'a ObjSettings,
 ) -> Result<Scene, ObjError> {
-    let (models, materials) = load_obj_data(bytes, ctx).await?;
-    let materials = materials.map_err(|err| {
-        let obj_path = ctx.path().clone_owned();
-        ObjError::MaterialError(obj_path, err)
-    })?;
+    let obj = wobj::Obj::parse(bytes)?;
 
-    let mut mat_handles = Vec::with_capacity(materials.len());
-    for (mat_idx, mat) in materials.into_iter().enumerate() {
-        let mut material = StandardMaterial {
-            base_color_texture: mat.diffuse_texture.and_then(|t| load_texture(&t, ctx)),
-            normal_map_texture: mat.normal_texture.and_then(|t| load_texture(&t, ctx)),
-            ..Default::default()
+    let mut materials = HashSet::new();
+    let mut meshes = Vec::new();
+
+    for obj_mesh in obj.meshes() {
+        let material = if let Some(mat_lib) = obj_mesh.mtllib()
+            && let Some(mat_name) = obj_mesh.material()
+        {
+            Some((mat_lib.to_path_buf(), mat_name.to_string()))
+        } else {
+            None
         };
-        if let Some(color) = mat.diffuse {
-            material.base_color = Color::srgb(color[0], color[1], color[2]);
-        }
-        mat_handles.push(ctx.add_labeled_asset(format!("Material{mat_idx}"), material));
+
+        let (indicies, vertices) = obj_mesh.triangulate();
+
+        materials.insert(material.clone());
+        meshes.push((indicies, vertices, material));
     }
 
+    let mat_handles = load_materials(ctx, materials).await?;
+
     let mut world = World::default();
-    for (model_idx, model) in models.into_iter().enumerate() {
-        let material_id = model.mesh.material_id;
+    for (i, (indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
         let mesh_handle = ctx.add_labeled_asset(
-            format!("Mesh{model_idx}"),
-            MeshConverter::from(model).convert(settings),
+            format!("Mesh.{i}"),
+            MeshConverter::new(indicies, verticies).convert(settings),
         );
 
         let entity = (
             Mesh3d(mesh_handle),
-            MeshMaterial3d(
-                material_id
-                    .map(|id| mat_handles[id].clone())
-                    .unwrap_or_default(),
-            ),
+            MeshMaterial3d(mat_handles.get(&mat_key).unwrap().clone()),
         );
+
+        println!("Adding: {:#?}", entity);
 
         world.spawn(entity);
     }
