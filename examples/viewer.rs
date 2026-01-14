@@ -136,7 +136,7 @@ fn input(
     // Height
     if buttons.pressed(MouseButton::Right) {
         for motion in motions.read() {
-            camera.height += motion.delta.y * 0.006;
+            camera.height += (camera.distance / 5.0) * motion.delta.y * 0.006;
         }
     }
 
