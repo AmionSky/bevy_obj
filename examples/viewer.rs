@@ -2,7 +2,7 @@ use bevy::asset::UnapprovedPathMode;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy_obj::ObjPlugin;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn main() {
     App::new()
@@ -14,42 +14,55 @@ fn main() {
             ObjPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (file_drop, (input, camera).chain()))
+        .add_systems(Update, (file_drop, spawn_obj, (input, camera).chain()))
         .run();
 }
 
-fn file_drop(
+#[derive(Component)]
+struct ObjPath(Option<std::path::PathBuf>);
+
+fn spawn_obj(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut events: MessageReader<FileDragAndDrop>,
+    obj_path: Query<&ObjPath, Changed<ObjPath>>,
     query: Query<Entity, With<SceneRoot>>,
 ) {
-    for event in events.read() {
-        if let Some(path) = drop_path(event) {
-            if is_obj(path) {
-                info!("Loading OBJ file: {:?}", path);
+    if let Ok(path) = obj_path.single()
+        && let Some(path) = &path.0
+    {
+        if is_obj(path) {
+            info!("Loading OBJ file: {:?}", path);
 
-                // Despawn old OBJ
-                if let Ok(scene) = query.single() {
-                    commands.entity(scene).despawn();
-                }
-
-                // Spawn new OBJ
-                let scene = asset_server.load(path.to_path_buf());
-                commands.spawn((SceneRoot(scene), Transform::IDENTITY));
-            } else {
-                warn!("Not an OBJ file: {:?}", path);
+            // Despawn old OBJ
+            if let Ok(scene) = query.single() {
+                commands.entity(scene).despawn();
             }
+
+            // Spawn new OBJ
+            let scene = asset_server.load(path.clone());
+            commands.spawn((SceneRoot(scene), Transform::IDENTITY));
+        } else {
+            warn!("Not an OBJ file: {:?}", path);
         }
     }
 }
 
-fn drop_path(event: &FileDragAndDrop) -> Option<&Path> {
+fn file_drop(mut events: MessageReader<FileDragAndDrop>, mut obj_path: Query<&mut ObjPath>) {
+    for event in events.read() {
+        if let Some(path) = drop_path(event)
+            && let Ok(mut obj_path) = obj_path.single_mut()
+        {
+            obj_path.0 = Some(path);
+        }
+    }
+}
+
+fn drop_path(event: &FileDragAndDrop) -> Option<PathBuf> {
     match event {
         FileDragAndDrop::DroppedFile {
             window: _,
             path_buf: path,
-        } => Some(path.as_path()),
+        } => Some(path.clone()),
         _ => None,
     }
 }
@@ -77,6 +90,9 @@ fn setup(mut commands: Commands) {
         Transform::IDENTITY,
         ViewerCamera::default(),
     ));
+
+    let arg_path = std::env::args_os().nth(1).map(PathBuf::from);
+    commands.spawn(ObjPath(arg_path));
 }
 
 #[derive(Component)]
