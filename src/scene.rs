@@ -110,18 +110,11 @@ async fn load_materials(
             match mtls.load(ctx, path, name).await {
                 Ok(mtl_mat) => {
                     let material = convert_material(ctx, mtl_mat);
-                    let label = {
-                        let mut label = format!("Material.{name}");
-                        if ctx.has_labeled_asset(&label) {
-                            label = format!("Material.{i}.{name}");
-                        }
-                        label
-                    };
-
+                    let label = format!("Material.{i}.{name}");
                     ctx.add_labeled_asset(label, material)
                 }
                 Err(error) => {
-                    // TODO: log error
+                    // TODO: properly log error
                     eprintln!("Failed to load material: {error}");
                     default_material(ctx)
                 }
