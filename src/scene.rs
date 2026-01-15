@@ -43,6 +43,8 @@ pub enum ObjError {
     AssetError(#[from] bevy::asset::ReadAssetBytesError),
     #[error("Material not found")]
     MatNotFound,
+    #[error("Invalid mesh: {0}")]
+    InvalidMesh(&'static str),
 }
 
 fn resolve_path<P: AsRef<Path>>(ctx: &LoadContext, path: P) -> AssetPath<'static> {
@@ -91,21 +93,41 @@ async fn load_materials(
     let mut handles = HashMap::new();
     let mut mtls = MtlCache::new();
 
+    fn default_material(ctx: &mut LoadContext<'_>) -> Handle<StandardMaterial> {
+        const DEFAULT_MATERIAL_LABEL: &str = "Material.Default";
+        if ctx.has_labeled_asset(DEFAULT_MATERIAL_LABEL) {
+            ctx.get_label_handle(DEFAULT_MATERIAL_LABEL)
+        } else {
+            ctx.add_labeled_asset(
+                DEFAULT_MATERIAL_LABEL.to_string(),
+                StandardMaterial::default(),
+            )
+        }
+    }
+
     for (i, mat_key) in materials.into_iter().enumerate() {
         let handle = if let Some((path, name)) = &mat_key {
-            let mtl_mat = mtls.load(ctx, path, name).await?;
-            let material = convert_material(ctx, mtl_mat);
-            let label = {
-                let mut label = format!("Material.{name}");
-                if ctx.has_labeled_asset(&label) {
-                    label = format!("Material.{i}.{name}");
-                }
-                label
-            };
+            match mtls.load(ctx, path, name).await {
+                Ok(mtl_mat) => {
+                    let material = convert_material(ctx, mtl_mat);
+                    let label = {
+                        let mut label = format!("Material.{name}");
+                        if ctx.has_labeled_asset(&label) {
+                            label = format!("Material.{i}.{name}");
+                        }
+                        label
+                    };
 
-            ctx.add_labeled_asset(label, material)
+                    ctx.add_labeled_asset(label, material)
+                }
+                Err(error) => {
+                    // TODO: log error
+                    eprintln!("Failed to load material: {error}");
+                    default_material(ctx)
+                }
+            }
         } else {
-            ctx.add_labeled_asset("Material.Default".to_string(), StandardMaterial::default())
+            default_material(ctx)
         };
 
         handles.insert(mat_key, handle);
@@ -187,7 +209,7 @@ async fn load_obj_as_scene<'a>(
             .zip(obj_mesh.material().map(String::from));
         materials.insert(material.clone());
 
-        let (indicies, vertices) = obj_mesh.triangulate();
+        let (indicies, vertices) = obj_mesh.triangulate().map_err(ObjError::InvalidMesh)?;
         meshes.push((indicies, vertices, material));
     }
 
@@ -195,6 +217,11 @@ async fn load_obj_as_scene<'a>(
 
     let mut world = World::default();
     for (i, (indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
+        println!(
+            "Adding mesh {i} with material {:?}",
+            mat_key.as_ref().map(|(_, n)| n)
+        );
+
         let mesh_handle = ctx.add_labeled_asset(
             format!("Mesh.{i}"),
             crate::util::to_bevy_mesh(indicies, verticies, settings),
