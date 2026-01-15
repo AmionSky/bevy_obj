@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.18.0"
+version = "0.18.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
@@ -20,39 +20,7 @@ features = ["bevy_asset", "bevy_mesh"]
 
 [dev-dependencies.bevy]
 version = "0.18.0"
-default-features = false
-features = [
-    "default_app",
-    "3d_bevy_render",
-    "scene",
-    "audio",
-    "picking",
-    "std",
-    "android-game-activity",
-    "android_shared_stdcxx",
-    "bevy_gilrs",
-    "bevy_winit",
-    "default_font",
-    "multi_threaded",
-    "webgl2",
-    "x11",
-    "sysinfo_plugin",
-    "bmp",
-    "dds",
-    "exr",
-    "ff",
-    "gif",
-    "hdr",
-    "ktx2",
-    "ico",
-    "jpeg",
-    "png",
-    "pnm",
-    "qoi",
-    "tga",
-    "tiff",
-    "webp",
-]
+default-features = true
 
 [features]
 default = ["mesh", "scene"]
