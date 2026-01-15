@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::ObjSettings;
+use crate::util::to_bevy_mesh;
 use bevy::asset::AssetPath;
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::platform::collections::{HashMap, HashSet};
@@ -38,11 +39,13 @@ pub enum ObjError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
-    ParseError(#[from] wobj::WobjError),
-    #[error("Asset read error: {0}")]
-    AssetError(#[from] bevy::asset::ReadAssetBytesError),
-    #[error("Material not found")]
-    MatNotFound,
+    ObjParseError(wobj::WobjError),
+    #[error("Invalid MTL file: {0}")]
+    MtlParseError(wobj::WobjError),
+    #[error("Failed to read MTL file: {0}")]
+    MtlReadError(#[from] bevy::asset::ReadAssetBytesError),
+    #[error("Material '{0}' not found in '{1}'")]
+    MaterialNotFound(String, PathBuf),
     #[error("Invalid mesh: {0}")]
     InvalidMesh(&'static str),
 }
@@ -75,14 +78,14 @@ impl MtlCache {
         if !self.cache.contains_key(path) {
             let asset_path = resolve_path(ctx, path);
             let bytes = ctx.read_asset_bytes(asset_path).await?;
-            let mtl = wobj::Mtl::parse(&bytes)?;
+            let mtl = wobj::Mtl::parse(&bytes).map_err(ObjError::MtlParseError)?;
             self.cache.insert(path.clone(), mtl);
         }
 
         self.cache
             .get(path)
             .and_then(|mtl| mtl.get(name))
-            .ok_or(ObjError::MatNotFound)
+            .ok_or_else(|| ObjError::MaterialNotFound(name.to_string(), path.to_path_buf()))
     }
 }
 
@@ -110,20 +113,19 @@ async fn load_materials(
             match mtls.load(ctx, path, name).await {
                 Ok(mtl_mat) => {
                     let material = convert_material(ctx, mtl_mat);
-                    let label = format!("Material.{i}.{name}");
-                    ctx.add_labeled_asset(label, material)
+                    let label = format!("Material{i}");
+                    Some(ctx.add_labeled_asset(label, material))
                 }
                 Err(error) => {
-                    // TODO: properly log error
-                    eprintln!("Failed to load material: {error}");
-                    default_material(ctx)
+                    error!("Failed to load MTL material: {error}");
+                    None
                 }
             }
         } else {
-            default_material(ctx)
+            None
         };
 
-        handles.insert(mat_key, handle);
+        handles.insert(mat_key, handle.unwrap_or_else(|| default_material(ctx)));
     }
 
     Ok(handles)
@@ -135,6 +137,7 @@ fn load_texture(ctx: &mut LoadContext, path: &PathBuf) -> Handle<Image> {
 
 fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> StandardMaterial {
     let mut m = StandardMaterial::default();
+
     if let Some(v) = &material.diffuse {
         match *v {
             wobj::ColorValue::RGB(r, g, b) => m.base_color = Color::srgb(r, g, b),
@@ -190,7 +193,7 @@ async fn load_obj_as_scene<'a>(
     ctx: &'a mut LoadContext<'_>,
     settings: &'a ObjSettings,
 ) -> Result<Scene, ObjError> {
-    let obj = wobj::Obj::parse(bytes)?;
+    let obj = wobj::Obj::parse(bytes).map_err(ObjError::ObjParseError)?;
 
     let mut materials = HashSet::new();
     let mut meshes = Vec::new();
@@ -210,19 +213,14 @@ async fn load_obj_as_scene<'a>(
 
     let mut world = World::default();
     for (i, (indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
-        println!(
-            "Adding mesh {i} with material {:?}",
-            mat_key.as_ref().map(|(_, n)| n)
-        );
-
         let mesh_handle = ctx.add_labeled_asset(
-            format!("Mesh.{i}"),
-            crate::util::to_bevy_mesh(indicies, verticies, settings),
+            format!("Mesh{i}"),
+            to_bevy_mesh(indicies, verticies, settings),
         );
 
         let entity = (
             Mesh3d(mesh_handle),
-            MeshMaterial3d(mat_handles.get(&mat_key).unwrap().clone()),
+            MeshMaterial3d(mat_handles[&mat_key].clone()),
         );
 
         world.spawn(entity);
