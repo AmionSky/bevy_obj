@@ -36,8 +36,6 @@ pub enum ObjError {
     IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
     InvalidFile(#[from] wobj::WobjError),
-    #[error("Invalid mesh: {0}")]
-    InvalidMesh(wobj::WobjError),
 }
 
 pub fn load_obj_as_mesh(bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
@@ -49,7 +47,7 @@ pub fn load_obj_as_mesh(bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, Ob
     let mut uvs = Vec::new();
 
     for mesh in obj.meshes() {
-        let trimesh = mesh.triangulate().map_err(ObjError::InvalidMesh)?;
+        let trimesh = mesh.triangulate()?;
         let start_index = positions.len();
         indicies.extend(trimesh.0.0.into_iter().map(|i| i + start_index));
         positions.extend(trimesh.1.positions);
