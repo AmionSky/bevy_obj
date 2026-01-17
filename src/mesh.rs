@@ -1,4 +1,4 @@
-use crate::{ObjSettings, util::MeshConverter};
+use crate::ObjSettings;
 use bevy::asset::{AssetLoader, LoadContext, io::Reader};
 use bevy::mesh::Mesh;
 use bevy::reflect::TypePath;
@@ -35,13 +35,42 @@ pub enum ObjError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Invalid OBJ file: {0}")]
-    InvalidFile(#[from] tobj::LoadError),
+    InvalidFile(#[from] wobj::WobjError),
 }
 
-pub fn load_obj_as_mesh(mut bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
-    let obj = tobj::load_obj_buf(&mut bytes, &tobj::GPU_LOAD_OPTIONS, |_| {
-        Err(tobj::LoadError::GenericFailure)
-    })?;
+pub fn load_obj_as_mesh(bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
+    let obj = wobj::Obj::parse(bytes)?;
 
-    Ok(MeshConverter::from(obj.0).convert(settings))
+    let mut indicies = Vec::new();
+    let mut positions = Vec::new();
+    let mut normals = Vec::new();
+    let mut uvs = Vec::new();
+
+    for mesh in obj.meshes() {
+        let trimesh = mesh.triangulate()?;
+        let start_index = positions.len();
+        indicies.extend(trimesh.0.0.into_iter().map(|i| i + start_index));
+        positions.extend(trimesh.1.positions);
+        if let Some(v) = trimesh.1.normals {
+            normals.extend(v);
+        }
+        if let Some(v) = trimesh.1.uvs {
+            uvs.extend(v);
+        }
+    }
+
+    let len = positions.len();
+    Ok(crate::util::to_bevy_mesh(
+        wobj::Indicies(indicies),
+        wobj::Vertices {
+            positions,
+            normals: if normals.len() == len {
+                Some(normals)
+            } else {
+                None
+            },
+            uvs: if uvs.len() == len { Some(uvs) } else { None },
+        },
+        settings,
+    ))
 }
