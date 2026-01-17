@@ -11,7 +11,7 @@ exclude = ["/assets", "/examples"]
 [dependencies]
 serde = { version = "1.0.0", features = ["derive"] }
 thiserror = "2.0.0"
-wobj.path = "../wobj"
+wobj = "0.3.0"
 
 [dependencies.bevy]
 version = "0.18.0"

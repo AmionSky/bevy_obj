@@ -47,7 +47,7 @@ pub enum ObjError {
     #[error("Material '{0}' not found in '{1}'")]
     MaterialNotFound(String, PathBuf),
     #[error("Invalid mesh: {0}")]
-    InvalidMesh(&'static str),
+    InvalidMesh(wobj::WobjError),
 }
 
 fn resolve_path<P: AsRef<Path>>(ctx: &LoadContext, path: P) -> AssetPath<'static> {

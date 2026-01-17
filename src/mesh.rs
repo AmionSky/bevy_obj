@@ -37,7 +37,7 @@ pub enum ObjError {
     #[error("Invalid OBJ file: {0}")]
     InvalidFile(#[from] wobj::WobjError),
     #[error("Invalid mesh: {0}")]
-    InvalidMesh(&'static str),
+    InvalidMesh(wobj::WobjError),
 }
 
 pub fn load_obj_as_mesh(bytes: &[u8], settings: &ObjSettings) -> Result<Mesh, ObjError> {
