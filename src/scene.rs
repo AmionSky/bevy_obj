@@ -48,13 +48,18 @@ pub enum ObjError {
     MaterialNotFound(String, PathBuf),
     #[error("Invalid mesh: {0}")]
     InvalidMesh(wobj::WobjError),
+    #[error("Failed to resolve path: {0}")]
+    ResolveError(#[from] bevy::asset::ParseAssetPathError),
 }
 
-fn resolve_path<P: AsRef<Path>>(ctx: &LoadContext, path: P) -> AssetPath<'static> {
-    if let Some(parent) = ctx.path().parent() {
-        parent.path().join(path).into()
+fn resolve_path<'a>(source: &AssetPath<'a>, path: &Path) -> Result<AssetPath<'static>, ObjError> {
+    if path.is_relative()
+        && let Some(path) = path.to_str()
+        && let Some(parent) = source.parent()
+    {
+        Ok(parent.resolve(path)?)
     } else {
-        path.as_ref().to_path_buf().into()
+        Ok(path.to_path_buf().into())
     }
 }
 
@@ -76,7 +81,7 @@ impl MtlCache {
         name: &str,
     ) -> Result<&wobj::Material, ObjError> {
         if !self.cache.contains_key(path) {
-            let asset_path = resolve_path(ctx, path);
+            let asset_path = resolve_path(ctx.path(), path)?;
             let bytes = ctx.read_asset_bytes(asset_path).await?;
             let mtl = wobj::Mtl::parse(&bytes).map_err(ObjError::MtlParseError)?;
             self.cache.insert(path.clone(), mtl);
@@ -112,7 +117,7 @@ async fn load_materials(
         let handle = if let Some((path, name)) = &mat_key {
             match mtls.load(ctx, path, name).await {
                 Ok(mtl_mat) => {
-                    let material = convert_material(ctx, mtl_mat);
+                    let material = convert_material(ctx, mtl_mat)?;
                     let label = format!("Material{i}");
                     Some(ctx.add_labeled_asset(label, material))
                 }
@@ -131,11 +136,14 @@ async fn load_materials(
     Ok(handles)
 }
 
-fn load_texture(ctx: &mut LoadContext, path: &PathBuf) -> Handle<Image> {
-    ctx.load(resolve_path(ctx, path))
+fn load_texture(ctx: &mut LoadContext, path: &Path) -> Result<Handle<Image>, ObjError> {
+    Ok(ctx.load(resolve_path(ctx.path(), path)?))
 }
 
-fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> StandardMaterial {
+fn convert_material(
+    ctx: &mut LoadContext<'_>,
+    material: &wobj::Material,
+) -> Result<StandardMaterial, ObjError> {
     let mut m = StandardMaterial::default();
 
     if let Some(v) = &material.diffuse {
@@ -172,12 +180,12 @@ fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> Sta
     apply_f32(material.anisotropy_rotation, &mut m.anisotropy_rotation);
 
     if let Some(map) = &material.diffuse_map {
-        m.base_color_texture = Some(load_texture(ctx, map.path()))
+        m.base_color_texture = Some(load_texture(ctx, map.path())?)
     }
 
     // Treat both normal and bump map as normal map texture
     if let Some(map) = material.normal_map.as_ref().or(material.bump_map.as_ref()) {
-        m.normal_map_texture = Some(load_texture(ctx, map.path()))
+        m.normal_map_texture = Some(load_texture(ctx, map.path())?)
     }
 
     // Enable alpha blend if the material has a dissolve map
@@ -185,7 +193,7 @@ fn convert_material(ctx: &mut LoadContext<'_>, material: &wobj::Material) -> Sta
         m.alpha_mode = AlphaMode::Blend
     }
 
-    m
+    Ok(m)
 }
 
 async fn load_obj_as_scene<'a>(
@@ -227,4 +235,54 @@ async fn load_obj_as_scene<'a>(
     }
 
     Ok(Scene::new(world))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_path() {
+        let source = AssetPath::from("models/cube.obj");
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("cube.mtl")).unwrap(),
+            AssetPath::from("models/cube.mtl")
+        );
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("subdir/cube.mtl")).unwrap(),
+            AssetPath::from("models/subdir/cube.mtl")
+        );
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("/absolute/cube.mtl")).unwrap(),
+            AssetPath::from("/absolute/cube.mtl")
+        );
+
+        let source = AssetPath::from("/models/cube.obj");
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("cube.mtl")).unwrap(),
+            AssetPath::from("/models/cube.mtl")
+        );
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("subdir/cube.mtl")).unwrap(),
+            AssetPath::from("/models/subdir/cube.mtl")
+        );
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("/absolute/cube.mtl")).unwrap(),
+            AssetPath::from("/absolute/cube.mtl")
+        );
+
+        let source = AssetPath::from("https://example.com/models/cube.obj");
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("cube.mtl")).unwrap(),
+            AssetPath::from("https://example.com/models/cube.mtl")
+        );
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("subdir/cube.mtl")).unwrap(),
+            AssetPath::from("https://example.com/models/subdir/cube.mtl")
+        );
+        assert_eq!(
+            resolve_path(&source, &PathBuf::from("/absolute/cube.mtl")).unwrap(),
+            AssetPath::from("/absolute/cube.mtl")
+        );
+    }
 }

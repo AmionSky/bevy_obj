@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.18.1"
+version = "0.18.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
