@@ -25,7 +25,7 @@ fn spawn_obj(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     obj_path: Query<&ObjPath, Changed<ObjPath>>,
-    query: Query<Entity, With<SceneRoot>>,
+    query: Query<Entity, With<WorldAssetRoot>>,
 ) {
     if let Ok(path) = obj_path.single()
         && let Some(path) = &path.0
@@ -40,7 +40,7 @@ fn spawn_obj(
 
             // Spawn new OBJ
             let scene = asset_server.load(path.clone());
-            commands.spawn((SceneRoot(scene), Transform::IDENTITY));
+            commands.spawn((WorldAssetRoot(scene), Transform::IDENTITY));
         } else {
             warn!("Not an OBJ file: {:?}", path);
         }
