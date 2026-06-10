@@ -206,7 +206,7 @@ async fn load_obj_as_scene<'a>(
     let mut materials = HashSet::new();
     let mut meshes = Vec::new();
 
-    for (i, obj_mesh) in obj.meshes().iter().enumerate() {
+    for obj_mesh in obj.meshes() {
         let material = obj_mesh
             .mtllib()
             .map(PathBuf::from)
@@ -214,21 +214,21 @@ async fn load_obj_as_scene<'a>(
         materials.insert(material.clone());
 
         let (indicies, vertices) = obj_mesh.triangulate().map_err(ObjError::InvalidMesh)?;
-        let name = obj_mesh
-            .name()
-            .map_or_else(|| format!("Mesh{i}"), str::to_owned);
+        let name = obj_mesh.name().map(str::to_owned);
         meshes.push((name, indicies, vertices, material));
     }
 
     let mat_handles = load_materials(ctx, materials).await?;
 
     let mut world = World::default();
-    for (name, indicies, verticies, mat_key) in meshes {
-        let mesh_handle =
-            ctx.add_labeled_asset(name.clone(), to_bevy_mesh(indicies, verticies, settings));
+    for (i, (name, indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
+        let mesh_handle = ctx.add_labeled_asset(
+            format!("Mesh{i}"),
+            to_bevy_mesh(indicies, verticies, settings),
+        );
 
         let entity = (
-            Name::new(name),
+            Name::new(name.unwrap_or_else(|| format!("Mesh{i}"))),
             Mesh3d(mesh_handle),
             MeshMaterial3d(mat_handles[&mat_key].clone()),
         );
