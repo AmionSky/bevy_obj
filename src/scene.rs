@@ -234,12 +234,14 @@ async fn load_obj_as_scene<'a>(
 
         let entity = (
             Name::new(name.unwrap_or_else(|| format!("Mesh{i}"))),
-            MeshGroups(groups),
             Mesh3d(mesh_handle),
             MeshMaterial3d(mat_handles[&mat_key].clone()),
         );
 
-        world.spawn(entity);
+        let mut entity = world.spawn(entity);
+        if !groups.is_empty() {
+            entity.insert(MeshGroups(groups));
+        }
     }
 
     Ok(Scene::new(world))
