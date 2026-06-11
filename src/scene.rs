@@ -196,6 +196,10 @@ fn convert_material(
     Ok(m)
 }
 
+#[derive(Component, Reflect, Default, Debug, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct MeshGroups(pub Vec<String>);
+
 async fn load_obj_as_scene<'a>(
     bytes: &'a [u8],
     ctx: &'a mut LoadContext<'_>,
@@ -215,13 +219,14 @@ async fn load_obj_as_scene<'a>(
 
         let (indicies, vertices) = obj_mesh.triangulate().map_err(ObjError::InvalidMesh)?;
         let name = obj_mesh.name().map(str::to_owned);
-        meshes.push((name, indicies, vertices, material));
+        let groups = obj_mesh.groups().to_vec();
+        meshes.push((name, groups, indicies, vertices, material));
     }
 
     let mat_handles = load_materials(ctx, materials).await?;
 
     let mut world = World::default();
-    for (i, (name, indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
+    for (i, (name, groups, indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
         let mesh_handle = ctx.add_labeled_asset(
             format!("Mesh{i}"),
             to_bevy_mesh(indicies, verticies, settings),
@@ -229,6 +234,7 @@ async fn load_obj_as_scene<'a>(
 
         let entity = (
             Name::new(name.unwrap_or_else(|| format!("Mesh{i}"))),
+            MeshGroups(groups),
             Mesh3d(mesh_handle),
             MeshMaterial3d(mat_handles[&mat_key].clone()),
         );
