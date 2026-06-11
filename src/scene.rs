@@ -8,6 +8,10 @@ use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 
+#[derive(Component, Reflect, Default, Debug, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct MeshGroups(pub Vec<String>);
+
 #[derive(Default, TypePath)]
 pub struct ObjLoader;
 
@@ -195,10 +199,6 @@ fn convert_material(
 
     Ok(m)
 }
-
-#[derive(Component, Reflect, Default, Debug, Deref, DerefMut)]
-#[reflect(Component)]
-pub struct MeshGroups(pub Vec<String>);
 
 async fn load_obj_as_scene<'a>(
     bytes: &'a [u8],
