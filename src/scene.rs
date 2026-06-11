@@ -8,6 +8,10 @@ use bevy::platform::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use bevy::tasks::ConditionalSendFuture;
 
+#[derive(Component, Reflect, Default, Debug, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct MeshGroups(pub Vec<String>);
+
 #[derive(Default, TypePath)]
 pub struct ObjLoader;
 
@@ -215,13 +219,14 @@ async fn load_obj_as_scene<'a>(
 
         let (indicies, vertices) = obj_mesh.triangulate().map_err(ObjError::InvalidMesh)?;
         let name = obj_mesh.name().map(str::to_owned);
-        meshes.push((name, indicies, vertices, material));
+        let groups = obj_mesh.groups().to_vec();
+        meshes.push((name, groups, indicies, vertices, material));
     }
 
     let mat_handles = load_materials(ctx, materials).await?;
 
     let mut world = World::default();
-    for (i, (name, indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
+    for (i, (name, groups, indicies, verticies, mat_key)) in meshes.into_iter().enumerate() {
         let mesh_handle = ctx.add_labeled_asset(
             format!("Mesh{i}"),
             to_bevy_mesh(indicies, verticies, settings),
@@ -233,7 +238,10 @@ async fn load_obj_as_scene<'a>(
             MeshMaterial3d(mat_handles[&mat_key].clone()),
         );
 
-        world.spawn(entity);
+        let mut entity = world.spawn(entity);
+        if !groups.is_empty() {
+            entity.insert(MeshGroups(groups));
+        }
     }
 
     Ok(Scene::new(world))
