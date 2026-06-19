@@ -232,13 +232,12 @@ async fn load_obj_as_scene<'a>(
             to_bevy_mesh(indicies, verticies, settings),
         );
 
-        let entity = (
+        let mut entity = world.spawn((
             Name::new(name.unwrap_or_else(|| format!("Mesh{i}"))),
             Mesh3d(mesh_handle),
             MeshMaterial3d(mat_handles[&mat_key].clone()),
-        );
+        ));
 
-        let mut entity = world.spawn(entity);
         if !groups.is_empty() {
             entity.insert(MeshGroups(groups));
         }
