@@ -29,7 +29,7 @@ fn load_mesh(
 fn load_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn a spinning cube
     commands.spawn((
-        SceneRoot(asset_server.load("cube.obj")),
+        WorldAssetRoot(asset_server.load("cube.obj")),
         Transform::from_xyz(1.7, 0.0, -0.5),
         Spin,
     ));
