@@ -1,6 +1,6 @@
 [package]
 name = "bevy_obj"
-version = "0.19.0"
+version = "0.20.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/AmionSky/bevy_obj"
@@ -14,13 +14,13 @@ thiserror = "2.0.0"
 wobj = "0.3.0"
 
 [dependencies.bevy]
-version = "0.19.0"
 default-features = false
 features = ["bevy_asset", "bevy_mesh"]
+version = "0.20.0"
 
 [dev-dependencies.bevy]
-version = "0.19.0"
 default-features = true
+version = "0.20.0"
 
 [features]
 default = ["mesh", "scene"]
